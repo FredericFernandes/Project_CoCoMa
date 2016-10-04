@@ -1,2 +1,2 @@
 # Project_CoCoMa
-Ceci est un projet pour le module "Cocoma" pour le M2 ANDROIDE
+Ceci est un projet pour le module "Cocoma" en M2 ANDROIDE
