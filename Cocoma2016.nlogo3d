@@ -211,12 +211,9 @@ to setup-env
 
   ; Montagnes
   if nb-mountains > 0 [
-    let list-mountains sort (n-values nb-mountains [?])
-
-    foreach list-mountains[
-      create-Montagne
-    ]
+    repeat nb-mountains [create-Montagne]
   ]
+
     ; Objectif
   ask one-of patches with[obstacle? = false and base? = false and hangar? = false and pxcor >= (max-pxcor / 2) and pycor >= (max-pycor / 2) and pzcor = mapAlt][set objectif? true ask patch-at 0 0 2 [set pcolor yellow set marker-goal? true]]
 
@@ -224,40 +221,19 @@ to setup-env
 end
 
 to create-Montagne
-  let centre one-of patches with [ pzcor = mapAlt and (patchIsGround? self)]
-  let list-voisins []
-  let nbV 0
-  let continu false
-  while [continu]
-  [
-    ask patches with [distance-nowrap centre < basseAlt + 1 ]
-    [
-      set list-voisins lput self list-voisins
-    ]
-    set nbV count list-voisins
-    set list-voisins []
-    ask patches with [distance-nowrap centre < basseAlt + 1  and patchIsGround? centre ]
-    [
-      set list-voisins lput self list-voisins
-    ]
-    set continu (nbV = (count list-voisins) )
+  let centre no-patches  ; centre de la montagne
+  let voisinsOfCentre [] ; liste de patch composant la montagne
+  let correct false
+  while [not correct][
+    set centre one-of patches with [patchIsGround?] ; on tire un nouveau centre de montagne aléatoire
+    set voisinsOfCentre (patches with [distance-nowrap centre < basseAlt + 1 ]) ; on récupérer les voisins de "centre"
+    set correct (all? voisinsOfCentre [patchIsAir? ]) ; continu est vrai si tous les patches de "voisinsOfCentre" sont libres ( pas d'obstacle , pas de base , etc ... )
   ]
-  ask patch-list list-voisins
-  [
+  ; on vient de trouver une montagne avec assez d'espace autour
+  ask voisinsOfCentre [
      set pcolor brown - 1
      set obstacle? true
   ]
-
-  ;ask patches with [ pzcor = mapAlt and (patchIsGround? self) and
-  ;     (all? patches with [distance-nowrap myself < basseAlt + 1 ] [patchIsGround? self]
-  ;       ) ]
-   ;    [
-  ;       ask patches with [distance-nowrap myself < basseAlt + 1]
-  ;       [
-  ;         set pcolor brown - 1
-  ;         set obstacle? true
-  ;       ]
-  ;   ]
 
 end
 
@@ -725,12 +701,12 @@ to-report enemiePatchSpawn
    let posX 0
    let posY 0
    let found? false
-   let patchFound  patch 0 0 0
+   let patchFound no-patches
    while[not found?] [
      set posX random-xcor
      set posY random-ycor
      ask patch posX  posY 0[
-         if (patchIsGround? self) [
+         if patchIsGround? [
            set found? true
            set patchFound (patch posX posY 1)]
      ]
@@ -738,18 +714,15 @@ to-report enemiePatchSpawn
    report patchFound
 end
 
-;; Fonction qui teste si le patch "myPatch" est une case de type sol
-to-report patchIsGround? [ myPatch ]
-  let res? 0
-  ask myPatch [ set res? ( not obstacle? and not base? and not hangar? and not objectif?)]
-  report res?
+;; Fonction utilisé dans un contexte de patch , et elle teste si le patch est une case de type sol
+to-report patchIsGround?
+    report ( not obstacle? and not base? and not hangar? and not objectif? and pzcor = mapAlt )
 end
 
-;; Fonction qui teste si le patch en paramétre  est une case vide de type air
-to-report patchIsAir? [ myPatch]
-  let res? 0
-  ask myPatch [ set res? ( not obstacle? and not base? and not hangar? and not objectif? and not bridge? and not marker-goal? )]
-  report res?
+;; Fonction utilisé dans un contexte de patch , qui teste si le patch est une case vide de type air
+to-report patchIsAir?
+  report ( not obstacle? and not base? and not hangar? and not objectif? and not bridge? and not marker-goal? )
+
 end
 
 to check-convoi
@@ -845,7 +818,7 @@ to show-cone[target]
   ;;Pour chaque patche trouvé on le colorie en rouge transparent et on le mets dans la liste "newList"
   ask target
   [
-    ask patches in-cone-nowrap dist-visibile angle-visibility with [not (pzcor = 0) and (patchIsAir? patch pxcor pycor pzcor)]
+    ask patches in-cone-nowrap dist-visibile angle-visibility with [not (pzcor = 0) and (patchIsAir?)]
     [
       set pcolor [255 0 0 45]
       set newList lput self newList
@@ -1080,7 +1053,7 @@ INPUTBOX
 137
 98
 nb-mountains
-3
+15
 1
 0
 Number
