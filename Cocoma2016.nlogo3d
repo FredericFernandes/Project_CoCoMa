@@ -821,7 +821,7 @@ end
 
 ; Fonction dans un contexte tortue, elle permet de faire des dégats à la tortue ciblé
 to dealDamage
-   ;set dead? true
+   set dead? true
 end
 
 ;; fonction qui permet d'afficher le cone de visibiliter de "target" ( drones,enemies,convois)
