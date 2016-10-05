@@ -18,9 +18,6 @@ globals [mapAlt solAlt basseAlt hauteAlt ; variables topologiques Z discretise: 
   send-interval ; communication period
   is-movie-recording?
   oldList ; liste des patches qui ont etaient peint en rouge transparent ( utilisé pour les remettre "vide" au ticks suivant
-  liste-DistAtDist ; créé une liste de numéro de  -dist-visibile-1 à dist-visibile+1  ( -10 à 10 par exp)
-  list0AtDist; ; créé une liste de numéro de 0 à dist-visibile+1  ( 0 à 10 par exp)
-  list0AtBasseAlt ; ; créé une liste de numéro de 0 à Base Altitude  ( 1 à 4 par exp)
 
   next-take-off?
 
@@ -119,13 +116,6 @@ to setup-globals
 
   set is-movie-recording? false
   set oldList []
-  set liste-DistAtDist sort remove-duplicates sentence (n-values (dist-visibile + 1) [?]) (n-values ( dist-visibile + 1) [ ( - ? )])
-  set list0AtDist sort (n-values (dist-visibile + 1) [?])
-  set list0AtBasseAlt remove-item 0 (sort (n-values (basseAlt + 1) [?])) ; on supprime tous les patches avec pzcor = 0
-
-  show word "liste-DistAtDist : " liste-DistAtDist
-  show word "list0AtDist : " list0AtDist
-  show word "list0AtBasseAlt : " list0AtBasseAlt
 end
 
 
@@ -210,8 +200,8 @@ to setup-env
 
 
   ; Montagnes
-  if nb-mountains > 0 [
-    repeat nb-mountains [create-Montagne]
+  if max-nb-mountains > 0 [
+    repeat max-nb-mountains [create-Montagne]
   ]
 
     ; Objectif
@@ -224,16 +214,21 @@ to create-Montagne
   let centre no-patches  ; centre de la montagne
   let voisinsOfCentre [] ; liste de patch composant la montagne
   let correct false
-  while [not correct][
+  let nbMaxIterration 100
+  while [(not correct) and (nbMaxIterration != 0)][
     set centre one-of patches with [patchIsGround?] ; on tire un nouveau centre de montagne aléatoire
     set voisinsOfCentre (patches with [distance-nowrap centre < basseAlt + 1 ]) ; on récupérer les voisins de "centre"
     set correct (all? voisinsOfCentre [patchIsAir? ]) ; continu est vrai si tous les patches de "voisinsOfCentre" sont libres ( pas d'obstacle , pas de base , etc ... )
+    set nbMaxIterration nbMaxIterration - 1
   ]
-  ; on vient de trouver une montagne avec assez d'espace autour
-  ask voisinsOfCentre [
-     set pcolor brown - 1
-     set obstacle? true
+  ifelse nbMaxIterration > 0 [
+    ; on vient de trouver une montagne avec assez d'espace autour
+    ask voisinsOfCentre [
+      set pcolor brown - 1
+      set obstacle? true
+    ]
   ]
+  [show "Plus de place pour une montagne !"]
 
 end
 
@@ -1049,20 +1044,20 @@ NIL
 
 INPUTBOX
 59
-38
-137
+37
+163
 98
-nb-mountains
-15
+max-nb-mountains
+20
 1
 0
 Number
 
 INPUTBOX
-137
-38
-189
-98
+219
+99
+271
+159
 nb-lakes
 2
 1
@@ -1070,9 +1065,9 @@ nb-lakes
 Number
 
 INPUTBOX
-189
+163
 38
-248
+222
 98
 nb-rivers
 2
@@ -1209,9 +1204,9 @@ NIL
 1
 
 INPUTBOX
-249
+222
 38
-318
+291
 99
 nb-enemies
 10
@@ -1348,9 +1343,9 @@ NIL
 1
 
 INPUTBOX
-91
+86
 99
-164
+159
 159
 dist-visibile
 7
@@ -1359,9 +1354,9 @@ dist-visibile
 Number
 
 INPUTBOX
-171
+158
 99
-233
+220
 159
 nb-drones
 5
