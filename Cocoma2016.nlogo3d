@@ -762,7 +762,7 @@ to enemies-move
           ifelse toward-goal1? [set toward-goal1? false] [set toward-goal1? true]
         ]
         ; Détéction des convois
-        let targets convois in-cone dist-visibile angle-visibility
+        let targets convois in-cone dist-visibile angle-visibility with [not dead?]
         if any? other targets
         [ ; si il y a un convoi dans notre chant de vision
           shoot (one-of targets)
@@ -771,11 +771,23 @@ to enemies-move
 
 end
 to shoot [ target ]
-  if (ticks - tick-shoot > 20) ; if can shoot
+  if (ticks - tick-shoot > 50) ; if can shoot
   [
     set tick-shoot ticks
     let dirCorrection 0
-    let patch_target [patch-here] of target
+
+    let posX 0
+    let posY 0
+    let posZ 0
+    ask target [
+       let offsetX (random 3) - 1 ;random  entre [-1 , 1] inclue
+       let offsetY (random 3) - 1 ;random  entre [-1 , 1] inclue
+       set posX pxcor + offsetX
+       set posY pycor + offsetY
+       set posZ pzcor
+    ]
+    let patch_target patch posX posY posZ
+
     let patch_source patch-here
     hatch-missiles 1
     [
@@ -786,22 +798,30 @@ to shoot [ target ]
 
       set origin patch_source
       set range dist-visibile  ; les missiles ne vont pas plus loin que la distance de vue des turtles
-      ; On tourne
-       face patch_target
+
+      ;on tourne
+      face patch_target
     ]
   ]
 end
 
 to move-missiles
-
     ask missiles
     [
-      fd 0.5
+      fd 1
       if distance origin > range [die]
-      if any? convois-here[
-        ask convois-here [set dead? true show dead?] die]
-     ]
+      let victime one-of convois-here with [ not dead? ]
+      if victime != nobody[
+         ask victime [ dealDamage ]
+        die
+      ]
 
+    ]
+end
+
+; Fonction dans un contexte tortue, elle permet de faire des dégats à la tortue ciblé
+to dealDamage
+   ;set dead? true
 end
 
 ;; fonction qui permet d'afficher le cone de visibiliter de "target" ( drones,enemies,convois)
@@ -1047,7 +1067,7 @@ INPUTBOX
 163
 98
 max-nb-mountains
-20
+3
 1
 0
 Number
@@ -1149,7 +1169,7 @@ simu-speed
 simu-speed
 0
 10
-1
+4
 1
 1
 NIL
@@ -1208,7 +1228,7 @@ INPUTBOX
 291
 99
 nb-enemies
-10
+15
 1
 0
 Number
@@ -1230,7 +1250,7 @@ SWITCH
 224
 debug-enemies-cone?
 debug-enemies-cone?
-1
+0
 1
 -1000
 
