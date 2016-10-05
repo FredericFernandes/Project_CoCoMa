@@ -44,6 +44,7 @@ enemies-own[
   speed maxdir; maximal speed of a car, and max angle
   goal1 goal2
   toward-goal1?  ;set true to go to goal1 set false to go to goal2
+  cible ; cible pour le tick en cours , == à "nobody" si pas de cible en cours
 ]
 
 missiles-own[
@@ -57,8 +58,8 @@ drones-own[
   speed ;vitesse du drone
   comportement ;comportement du drone : 1 suis le convoi 2 patrouille en avance du convoi (pour l'instant)
   range-com ; en distance patch
+  cible ; cible pour le tick en cours , == à "nobody" si pas de cible en cours
 ]
-
 
 ;***********************
 ;         SETUP
@@ -90,7 +91,6 @@ to setup
   setup-enemies
   ;setup-citizens
 ;  setup-hq
-
   setup-precache
   display ; reenable gui display
   reset-ticks
@@ -101,9 +101,9 @@ to setup-globals
   set mapAlt 0
   set solAlt 1
   set basseAlt floor (max-pzcor / 3 * 2 - 1)
-  show word "basse Altitude : " basseAlt
+  ;show word "basse Altitude : " basseAlt
   set hauteAlt floor (max-pzcor - 1)
-  show word "haute Altitude : " hauteAlt
+  ;show word "haute Altitude : " hauteAlt
   set mission-completed? false
   set mission-failed? false
 
@@ -644,6 +644,7 @@ to setup-enemies
       set goal1 enemiePatchSpawn
       set goal2 enemiePatchSpawn
       set toward-goal1? true
+      set cible no-turtles
     ]
   ]
 
@@ -763,15 +764,20 @@ to enemies-move
         ]
         ; Détéction des convois
         let targets convois in-cone dist-visibile angle-visibility with [not dead?]
-        if any? other targets
+        ifelse any? other targets
         [ ; si il y a un convoi dans notre chant de vision
-          shoot (one-of targets)
+          set cible one-of targets ; mise à jours de la cible
+          shoot
+        ]
+        [; else
+          set cible no-turtles ; mise à jours de la cible
         ]
       ]
 
 end
-to shoot [ target ]
-  if (ticks - tick-shoot > 50) ; if can shoot
+; Fonction utilisée dans un contexte de turtles posedant un attribut " cible"
+to shoot
+  if (ticks - tick-shoot > 30) ; if can shoot
   [
     set tick-shoot ticks
     let dirCorrection 0
@@ -779,7 +785,7 @@ to shoot [ target ]
     let posX 0
     let posY 0
     let posZ 0
-    ask target [
+    ask cible [  ; "cible" est un attribut du turtle
        let offsetX (random 3) - 1 ;random  entre [-1 , 1] inclue
        let offsetY (random 3) - 1 ;random  entre [-1 , 1] inclue
        set posX pxcor + offsetX
@@ -832,9 +838,16 @@ to show-cone[target]
   ;;Pour chaque patche trouvé on le colorie en rouge transparent et on le mets dans la liste "newList"
   ask target
   [
+    let globalCible cible
     ask patches in-cone-nowrap dist-visibile angle-visibility with [not (pzcor = 0) and (patchIsAir?)]
     [
-      set pcolor [255 0 0 45]
+      ifelse globalCible != no-turtles[
+         set pcolor [255 0 0 45]
+      ]
+      [; else
+         set pcolor [9 106 9 100]
+      ]
+
       set newList lput self newList
     ]
   ]
@@ -892,6 +905,7 @@ to setup-drones
       set comportement 0
       set atterissage-drone? false
       set range-com 10
+      set cible no-turtles
     ]
 
   ]
@@ -1281,8 +1295,8 @@ BUTTON
 355
 202
 388
-NIL
-watch one-of enemies
+watch enemies
+let tmp one-of enemies with [not dead? ]\nif tmp != nobody \n[watch one-of enemies with [not dead? ]]
 NIL
 1
 T
@@ -1298,8 +1312,8 @@ BUTTON
 392
 199
 425
-NIL
-follow one-of enemies
+ride enemies
+let tmp one-of enemies with [not dead? ]\nif tmp != nobody \n[ride one-of enemies with [not dead? ]]
 NIL
 1
 T
@@ -1328,12 +1342,12 @@ NIL
 0
 
 BUTTON
-208
+206
 356
-392
+390
 389
-NIL
-watch one-of convois
+watch convoi
+let tmp one-of convois with [not dead? ]\nif tmp != nobody \n[watch one-of convois with [not dead? ]]
 NIL
 1
 T
@@ -1347,10 +1361,10 @@ NIL
 BUTTON
 205
 393
-386
+350
 426
-NIL
-follow one-of convois
+ride convois
+let tmp one-of convois with [not dead? ]\nif tmp != nobody \n[ ride one-of convois with [not dead? ]]
 NIL
 1
 T
@@ -1388,8 +1402,8 @@ BUTTON
 357
 572
 390
-NIL
-watch one-of drones
+watch drone
+let tmp one-of drones with [not dead? ]\nif tmp != nobody \n[watch one-of drones with [not dead? ]]
 NIL
 1
 T
@@ -1405,8 +1419,8 @@ BUTTON
 396
 571
 429
-NIL
-follow one-of drones
+follow drone
+let tmp one-of drones with [not dead? ]\nif tmp != nobody \n[follow one-of drones with [not dead? ]]
 NIL
 1
 T
@@ -1422,8 +1436,8 @@ BUTTON
 448
 567
 481
-NIL
-ride one-of drones
+ride drone
+let tmp one-of drones with [not dead? ]\nif tmp != nobody \n[ride one-of drones]
 NIL
 1
 T
@@ -1496,7 +1510,7 @@ Polygon -7500403 true true 150 5 40 250 150 205 260 250
 airplane
 true
 0
-Polygon -7500403 true true 150 0 135 15 120 60 120 105 15 165 15 195 120 180 135 240 105 270 120 285 150 270 180 285 210 270 165 240 180 180 285 195 285 165 180 105 180 60 165 15
+Polygon -7500403 true true 150 0 165 15 180 60 180 105 285 165 285 195 180 180 165 240 195 270 180 285 150 270 120 285 90 270 135 240 120 180 15 195 15 165 120 105 120 60 135 15
 
 arrow
 true
