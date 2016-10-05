@@ -198,7 +198,6 @@ to setup-env
   ; Copie des obstacles: on s'assure que les patchs au niveau solAlt ont la meme valeur obstacle? que leur patch en-dessous au niveau mapAlt (assure que enemy-random-move fonctionne bien et facilite la detection des obstacles car pas besoin de regarder au niveau mapAlt mais directement dans les patchs solAlt)
   ask patches with [[obstacle?] of patch-at 0 0 -1] [set obstacle? true]
 
-
   ; Montagnes
   if max-nb-mountains > 0 [
     repeat max-nb-mountains [create-Montagne]
