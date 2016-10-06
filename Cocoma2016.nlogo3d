@@ -17,7 +17,6 @@ globals [mapAlt solAlt basseAlt hauteAlt ; variables topologiques Z discretise: 
   mission-completed? mission-failed?
   send-interval ; communication period
   is-movie-recording?
-  oldList ; liste des patches qui ont etaient peint en rouge transparent ( utilisé pour les remettre "vide" au ticks suivant
 
   next-take-off?
 
@@ -45,6 +44,8 @@ enemies-own[
   goal1 goal2
   toward-goal1?  ;set true to go to goal1 set false to go to goal2
   cible ; cible pour le tick en cours , == à "nobody" si pas de cible en cours
+  oldVisualRange  ;liste de patches représentant le champ de vision des tortules  ; ( utilisé pour les remettre "vide" au ticks suivant )
+  newVisualRange ;liste de patches représentant le champ de vision des tortules
 ]
 
 missiles-own[
@@ -118,7 +119,6 @@ to setup-globals
  ; set dist-R-set []
 
   set is-movie-recording? false
-  set oldList []
 end
 
 
@@ -226,7 +226,7 @@ to-report create-Montagne
   let nbMaxIterration 100
   while [(not correct) and (nbMaxIterration != 0)][
     set centre one-of patches with [patchIsGround?] ; on tire un nouveau centre de montagne aléatoire
-    set voisinsOfCentre (patches with [distance-nowrap centre < basseAlt + 1 ]) ; on récupérer les voisins de "centre"
+    set voisinsOfCentre (patches with [(distance-nowrap centre < basseAlt + 1) and  not (pzcor = 0)  ]) ; on récupérer les voisins de "centre"
     set correct (all? voisinsOfCentre [patchIsAir? ]) ; continu est vrai si tous les patches de "voisinsOfCentre" sont libres ( pas d'obstacle , pas de base , etc ... )
     set nbMaxIterration nbMaxIterration - 1
   ]
@@ -634,70 +634,44 @@ end
 
 
 to setup-enemies
-  if nb-enemies > 0 [
-    ; creation des enemies
-    create-enemies nb-enemies [
-      ; Init apparence NetLogo
-      set shape "person soldier (custom)"
-      ;set color red
-      ; Init vars enemies
-      set speed 0.25 * simu-speed / 20
-      set maxdir 10 * simu-speed
-      set heading 0
-      set roll 0
-      set pitch 0
-      set dead? false
-      set tick-shoot 0
+  if nb-enemies = 0 [ stop ]
+  ; creation des enemies
+  create-enemies nb-enemies [
+    ; Init apparence NetLogo
+    set shape "person soldier (custom)"
+    ;set color red
+    ; Init vars enemies
+    set speed 0.25 * simu-speed / 20
+    set maxdir 10 * simu-speed
+    set heading 0
+    set roll 0
+    set pitch 0
+    set dead? false
+    set tick-shoot 0
+    set label-color one-of base-colors
+    set label who
 
-      move-to enemiePatchSpawn
-      set goal1 enemiePatchSpawn
-      set goal2 enemiePatchSpawn
-      set toward-goal1? true
-      set cible no-turtles
+    set goal1 enemiePatchSpawn
+    ask goal1 [
+      set plabel-color [label-color] of myself
+      set pcolor [0 0 0 100]
+      set plabel (word "A" [who] of myself)
+      set marker-goal? true
     ]
+    move-to goal1
+    set goal2 enemiePatchSpawn
+    ask goal2 [
+      set plabel-color [label-color] of myself
+      set pcolor [0 0 0 100]
+      set plabel (word "B" [who] of myself)
+      set marker-goal? true
+    ]
+    set toward-goal1? false
+    set cible nobody
+    set oldVisualRange no-patches
+    set newVisualRange no-patches
   ]
 
-   ;let x random-xcor
-   ;let y random-ycor
-   ;let cond-boucle false
-   ;foreach sort-on [size] enemies
-   ;[
-   ;  set x random-xcor
-   ;  set y random-ycor
-   ;  while[not cond-boucle] [
-   ;    ask patch x y 0
-   ;    [
-   ;      ifelse (obstacle? = true or base? = true or hangar? = true or objectif? = true)
-   ;      [ set x random-xcor set y random-ycor]
-   ;      [ set cond-boucle true]
-   ;    ]
-;
-;     ]
-;     ask ? [move-to patch x y 1]
-;     set x random-xcor
-;     set y random-ycor
-;     set cond-boucle false
-;     while[not cond-boucle] [
-;       ask patch x y 0[
-;         ifelse (obstacle? = true or base? = true or hangar? = true or objectif? = true)
-;         [ set x random-xcor set y random-ycor]
-;         [ set cond-boucle true]];
-
-;     ]
-;      ask ? [set goal1 patch x y 1]
- ;     set x random-xcor set y random-ycor
-  ;    set cond-boucle false
-   ;   while[not cond-boucle] [
-  ;     ask patch x y 0[
-  ;       ifelse (obstacle? = true or base? = true or hangar? = true or objectif? = true)
-   ;      [ set x random-xcor set y random-ycor]
-   ;      [ set cond-boucle true]]
-
-;     ]
- ;     ask ? [set goal2 patch x y 1]
-  ;    ask ? [set toward-goal1? true]
-
- ; ]
 end
 
 ;; Fonction qui retourne un patch potentiel pour spawn ou pour objectif de la patrouille
@@ -720,12 +694,12 @@ end
 
 ;; Fonction utilisé dans un contexte de patch , et elle teste si le patch est une case de type sol
 to-report patchIsGround?
-    report ( not obstacle? and not base? and not hangar? and not objectif? and pzcor = mapAlt )
+    report ( not obstacle? and not base? and not hangar? and not objectif? and pzcor = mapAlt and not marker-goal?)
 end
 
 ;; Fonction utilisé dans un contexte de patch , qui teste si le patch est une case vide de type air
 to-report patchIsAir?
-  report ( not obstacle? and not base? and not hangar? and not objectif? and not bridge? and not marker-goal? )
+  report ( not (pzcor = 0) and not obstacle? and not base? and not hangar? and not objectif? and not bridge? and not marker-goal? )
 
 end
 
@@ -743,45 +717,50 @@ to check-convoi
 end
 
 to enemies-move
-      ask enemies
-      [
-        let goal goal1
-        if (not toward-goal1?) [set goal goal2]
-
-        let headingFlag (towards-nowrap goal)
-        let dirCorrection subtract-headings headingFlag heading
-
-        ; Arrondissement de l'angle (on ne veut pas faire de micro tournant)
-        set dirCorrection precision dirCorrection 2
-        ; Limite de l'angle, pour que ce soit plus realiste (la voiture ne peut pas faire un demi-tour sur place!)
-        ifelse dirCorrection > maxdir [ ; limite a droite
-          set dirCorrection maxdir
-        ]
-        [
-          if dirCorrection < maxdir * -1 [ ; limite a gauche
-            set dirCorrection maxdir * -1
-          ]
-        ]
-        ; On tourne
-        rt dirCorrection
-
-        ; Deplacement!
-        set pitch 0 ; make sure there's no pitch ever, else the car will disappear in the ground
-        fd speed ; Avance
-        if patch-here = goal [ ; On change de goal si on  arrive au but! (pour l'instant patrouille entre deux goals) (aléa ensuite)
-          ifelse toward-goal1? [set toward-goal1? false] [set toward-goal1? true]
-        ]
-        ; Détéction des convois
-        let targets convois in-cone dist-visibile angle-visibility with [not dead?]
-        ifelse any? other targets
-        [ ; si il y a un convoi dans notre chant de vision
-          set cible one-of targets ; mise à jours de la cible
-          shoot
-        ]
-        [; else
-          set cible no-turtles ; mise à jours de la cible
-        ]
+  no-display
+  ask enemies
+  [
+    let goal goal1
+    if (not toward-goal1?) [set goal goal2]
+    let headingFlag (towards-nowrap goal)
+    let dirCorrection subtract-headings headingFlag heading
+    ;Arrondissement de l'angle (on ne veut pas faire de micro tournant)
+    set dirCorrection precision dirCorrection 2
+    ;Limite de l'angle, pour que ce soit plus realiste (la voiture ne peut pas faire un demi-tour sur place!)
+    ifelse dirCorrection > maxdir [ ; limite a droite
+      set dirCorrection maxdir
+    ];else
+    [
+      if dirCorrection < maxdir * -1 [ ; limite a gauche
+        set dirCorrection maxdir * -1
       ]
+    ]
+    ;On tourne
+    rt dirCorrection
+
+    ; Deplacement!
+    set pitch 0 ; make sure there's no pitch ever, else the car will disappear in the ground
+    fd speed ; Avance
+    if patch-here = goal
+    [ ; On change de goal si on  arrive au but! (pour l'instant patrouille entre deux goals) (aléa ensuite)
+      ifelse toward-goal1? [set toward-goal1? false] [set toward-goal1? true]
+    ]
+
+    ; Détéction des convois
+    let targets convois in-cone dist-visibile angle-visibility with [not dead?]
+    ifelse any? other targets
+    [ ; si il y a un convoi dans notre chant de vision
+      set cible one-of targets ; mise à jours de la cible
+      shoot
+    ]
+    [; else
+      set cible nobody ; mise à jours de la cible
+    ]
+    ; affiche des champs de visions
+    if not (debug-enemies-cone?) [clear-all-cones]
+    if debug-enemies-cone? [show-cone]
+  ]
+  display
 
 end
 ; Fonction utilisée dans un contexte de turtles posedant un attribut " cible"
@@ -839,49 +818,43 @@ to dealDamage
    set dead? true
 end
 
-;; fonction qui permet d'afficher le cone de visibiliter de "target" ( drones,enemies,convois)
-to show-cone[target]
-  let newList [] ; initialisation de la nouvelle liste de pathes
+;Fonction dans un contexte turtles, qui permet d'afficher le cone de visibilité du turtle ( drones,enemies,convois)
+to show-cone
 
   ;; On recupere les patches qui sont dans le cone de visibilitée de "target", on ne prend que les patches qui sont de "l'aire" ( vide )
   ;;Pour chaque patche trouvé on le colorie en rouge transparent et on le mets dans la liste "newList"
-  ask target
+  let  listTmp no-turtles
+
+  ask patches in-cone-nowrap dist-visibile angle-visibility with [patchIsAir?]
   [
-    let globalCible cible
-    ask patches in-cone-nowrap dist-visibile angle-visibility with [not (pzcor = 0) and (patchIsAir?)]
-    [
-      ifelse globalCible != no-turtles[
-         set pcolor [255 0 0 45]
-      ]
-      [; else
-         set pcolor [9 106 9 100]
-      ]
-
-      set newList lput self newList
-    ]
+    ifelse ([cible] of myself) != nobody[
+       set pcolor [255 0 0 45]]
+    [; else
+       set pcolor [9 106 9 100]]
+    ifelse any? listTmp
+    [set listTmp (patch-set self listTmp)]
+    [set listTmp patch-set self]
   ]
-
-
-  let diffList removeListToList newList oldList ; on supprime les patches de "newList" dans "oldList"
-  foreach diffList [ ask ? [set pcolor [0 0 0 0]]] ;; permet de re-mettre transparent les patches derriere "target"
-  set oldList newList  ;; on utilisera "oldList" pour le ticks prochain
+  set newVisualRange listTmp
+  let res substract-set newVisualRange oldVisualRange
+  ; "res" est un patches-set qui contient la soustraction de oldVisualRange - newVisualRange
+  ask res [
+    set pcolor [0 0 0 0] ; permet de re-mettre transparent les patches derriere le turtle
+  ]
+  set oldVisualRange newVisualRange  ;; on utilisera "oldVisualRange" pour le ticks prochain
 end
 
- ;;;;fonction qui supprime les elements de "delList" dans "myList"
-to-report removeListToList [ delList myList ]
-  let newList myList ; copie de la liste "mylist" pour ne pas la modifier.
-  foreach delList [
-     ask ? [set newList remove ? newList ]
-     ]
-  report newList ; retourne la nouvelle liste
+ ;;;;fonction qui supprime les elements de "del-set" dans "curent-set"
+to-report substract-set [ del-set curent-set ]
+  report curent-set with [not member? self del-set]
 end
 
-;; fonction qui efface les cones de vision encore sur la map
-to clear-cone
-if not (empty? oldList) [
-  foreach oldList [ ask ? [set pcolor [0 0 0 0]]]
-  set oldList []
-]
+;;Fonction dans un contexte turtles, qui efface les cones de vision encore sur la map
+to clear-all-cones
+  ask oldVisualRange[
+    set pcolor [0 0 0 0]
+  ]
+  set oldVisualRange no-patches
 end
 
 ;-----------
@@ -914,7 +887,7 @@ to setup-drones
       set comportement 0
       set atterissage-drone? false
       set range-com 10
-      set cible no-turtles
+      set cible nobody
     ]
 
   ]
@@ -981,13 +954,10 @@ to atterissage-drone
 end
 
 
-
 to go
   convois-think
   check-convoi
   enemies-move
-  if not (debug-enemies-cone?) [clear-cone]
-  if debug-enemies-cone? [show-cone enemies]
   move-missiles
   drones-move
   if atterissage-drone?
@@ -1090,7 +1060,7 @@ INPUTBOX
 163
 98
 max-nb-mountains
-50
+3
 1
 0
 Number
@@ -1192,7 +1162,7 @@ simu-speed
 simu-speed
 0
 10
-4
+1
 1
 1
 NIL
@@ -1251,7 +1221,7 @@ INPUTBOX
 291
 99
 nb-enemies
-15
+5
 1
 0
 Number
@@ -1273,7 +1243,7 @@ SWITCH
 224
 debug-enemies-cone?
 debug-enemies-cone?
-0
+1
 1
 -1000
 
