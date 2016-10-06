@@ -67,6 +67,9 @@ drones-own[
 
 to setup
   ; The setup generates environments until one of them is acceptable (the convoi can accomplish the mission)
+  print "***********************"
+  print "       SETUP           "
+  print "***********************"
   let path-is-possible? false
   while [not path-is-possible?] [
     clear-all
@@ -199,9 +202,16 @@ to setup-env
   ask patches with [[obstacle?] of patch-at 0 0 -1] [set obstacle? true]
 
   ; Montagnes
-  if max-nb-mountains > 0 [
-    repeat max-nb-mountains [create-Montagne]
+  let nb-Montagne-create 0
+  let continu true
+  while [continu and nb-Montagne-create != max-nb-mountains]
+  [
+    set continu create-Montagne
+    if continu [
+      set nb-Montagne-create nb-Montagne-create + 1
+    ]
   ]
+  print (word "Il y a " nb-Montagne-create " montagne(s) de crée(s).")
 
     ; Objectif
   ask one-of patches with[obstacle? = false and base? = false and hangar? = false and pxcor >= (max-pxcor / 2) and pycor >= (max-pycor / 2) and pzcor = mapAlt][set objectif? true ask patch-at 0 0 2 [set pcolor yellow set marker-goal? true]]
@@ -209,7 +219,7 @@ to setup-env
 
 end
 
-to create-Montagne
+to-report create-Montagne
   let centre no-patches  ; centre de la montagne
   let voisinsOfCentre [] ; liste de patch composant la montagne
   let correct false
@@ -220,15 +230,14 @@ to create-Montagne
     set correct (all? voisinsOfCentre [patchIsAir? ]) ; continu est vrai si tous les patches de "voisinsOfCentre" sont libres ( pas d'obstacle , pas de base , etc ... )
     set nbMaxIterration nbMaxIterration - 1
   ]
-  ifelse nbMaxIterration > 0 [
+  if correct [
     ; on vient de trouver une montagne avec assez d'espace autour
     ask voisinsOfCentre [
       set pcolor brown - 1
       set obstacle? true
     ]
   ]
-  [show "Plus de place pour une montagne !"]
-
+  report correct
 end
 
 
@@ -1081,7 +1090,7 @@ INPUTBOX
 163
 98
 max-nb-mountains
-3
+50
 1
 0
 Number
