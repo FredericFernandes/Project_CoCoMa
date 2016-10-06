@@ -444,6 +444,7 @@ to-report plan-astar [start goal longpath?] ; start et goal sont des patchs
         create-waypoints 1 [ hide-turtle move-to [patch-at 0 0 1] of ([as-prev-pos] of pos)
           create-path-link-to one-of waypoints-on [patch-at 0 0 1] of pos [
             set color red
+            set shape "test"
             show-link
           ]
         ]
@@ -1221,7 +1222,7 @@ INPUTBOX
 291
 99
 nb-enemies
-5
+10
 1
 0
 Number
@@ -1873,6 +1874,16 @@ true
 0
 Line -7500403 true 150 150 90 180
 Line -7500403 true 150 150 210 180
+
+test
+0.0
+-0.2 0 0.0 1.0
+0.0 1 1.0 0.0
+0.2 0 0.0 1.0
+link direction
+true
+0
+Polygon -7500403 true true 150 90 90 210 150 150 210 210 150 90
 
 @#$#@#$#@
 0
