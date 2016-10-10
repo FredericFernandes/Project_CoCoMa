@@ -1,3 +1,4 @@
+__includes ["bdi.nls" "communication.nls"]
 breed [waypoints waypoint]
 breed [envconstructors envconstructor]
 breed [convois convoi]
@@ -12,17 +13,22 @@ directed-link-breed [convoi-links convoi-link]
 globals [mapAlt solAlt basseAlt hauteAlt ; variables topologiques Z discretise: definit le niveau ou se trouvent toutes les informations de la carte (obstacles base etc.) car en 2D, niveau au sol ou se trouvent les agents, niveau basse altitude et niveau haute altitude
   base-patches base-entry base-central ; precache: definit ou se trouvent les patchs de la base d'atterrissage, le patch d'entree sur la piste d'atterrissage, et le patch ou doivent s'arreter les drones pour se recharger. Permet d'evaluer rapidement la distance et les besoins des drones (quand ils doivent rentrer a la base)
   as-cost as-path ; variables globales pour les chemins AStar: le cout d'un pas sur un patch, et as-path est la liste des plans, un pour chaque convoi leader
-  ;max-fuel max-ammo ; fuel and ammo for drones.
-  ;fuel-dec ; how much fuel will be decremented at each iteration
+  max-fuel max-ammo ; fuel and ammo for drones.
+  fuel-dec ; how much fuel will be decremented at each iteration
   mission-completed? mission-failed?
   send-interval ; communication period
   is-movie-recording?
 
-  next-take-off?
-
-
-  atterissage-drone?
+  range-com ; en distance patch
   ]
+
+
+
+turtles-own [
+  beliefs
+  intentions
+]
+
 
 patches-own [obstacle? base? hangar? objectif? bridge? marker-goal? ; variables topologiques au niveau mapAlt, permet de definir les patchs praticables et ceux qui sont des obstacles
   as-closed as-heuristic as-prev-pos ; variables temporaires pour calculer les chemins AStar (effaces a chaque calcul de plan)
@@ -56,10 +62,15 @@ missiles-own[
 drones-own[
   dead?
   take-off? ;true si le drone a décollé
+  can-take-off? ; true si le drone peut décoller (le premier drone est init a true le reste a false)
+  can-land? ; placer a true si le drone est bien placé ( a quelques patches de la piste d'atterissage et dans le bon sens)
   speed ;vitesse du drone
   comportement ;comportement du drone : 1 suis le convoi 2 patrouille en avance du convoi (pour l'instant)
-  range-com ; en distance patch
   cible ; cible pour le tick en cours , == à "nobody" si pas de cible en cours
+  alt ; altitude du drone
+  atterissage?
+  incoming-queue ;Liste pour les message a initialiser à []
+  fuel ; essence
 ]
 
 ;***********************
@@ -67,6 +78,7 @@ drones-own[
 ;***********************
 
 to setup
+    clear-turtles
   ; The setup generates environments until one of them is acceptable (the convoi can accomplish the mission)
   print "***********************"
   print "       SETUP           "
@@ -862,6 +874,7 @@ end
 ;  DRONES
 ;-----------
 
+;Setup des drones
 to setup-drones
 
   let base-min-pxcor min [pxcor] of (patches with [hangar? and pzcor = mapAlt])
@@ -886,74 +899,169 @@ to setup-drones
       set take-off? false
       move-to patch (base-min-pxcor - 2) base-min-pycor 1
       set comportement 0
-      set atterissage-drone? false
-      set range-com 10
-      set cible nobody
+      set range-com 8
+      set can-take-off? false
+      set can-land? false
+      set atterissage? false
+      set label who ; display the drones names
+
+      set incoming-queue []
+      set fuel max-fuel
+
+    ]
+    ask first (sort-on [who] drones)[
+      set can-take-off? true
     ]
 
-  ]
-end
-
-
-
-
-to drones-move
-   set next-take-off? true
-   foreach sort-on [size] drones
-  [
-    if next-take-off?[
+    foreach sort-on [who] drones[
       ask ? [
-
-
-        if not take-off?
-        [decollage-drone ? BasseAlt]
-        fd speed / 10
+        set comportement (random 3)
+        ifelse comportement = 2 [     ;Comportement "tir sur les enemies"
+          ask ? [set alt basseAlt]
+        ]
+        [
+          ask ? [set alt hauteAlt]    ;Autres comportements
+        ]
 
       ]
     ]
-
   ]
+end
 
 
+
+;Déplacement des drones à chaque ticks
+to drones-move
+  foreach sort-on [who] drones[
+    let patch-com patch 0 0 0
+    ask ? [
+      set patch-com patch-here
+      if can-take-off?[
+        ifelse not take-off?[
+          decollage-drone ?
+        ]
+        [
+          if (? != last sort-on [who] drones) [
+            ask (drone [who + 1] of ?) [
+              set can-take-off? true
+            ]
+          ]
+        ]
+        if (atterissage?)[
+          atterissage-drone ?
+        ]
+        fd speed / 5
+;        fd speed / 10
+        set fuel fuel - fuel-dec
+      ]
+    ]
+  ]
 end
 
 
 
 
-
-to decollage-drone [drone-chois alt]
+;Fonction de décollage des drones ( on fait aller le drone en ligne droite et on modifie son orientation par rapport au sol avec les fontiosn tilt-up et tilt-down)
+to decollage-drone [drone-chois]
   ask drone-chois[
-      ifelse zcor - alt < -0.1[
-        tilt-up (alt - zcor) / 10
+    ifelse abs (zcor - alt) > 0.05[
+      tilt-up abs (alt - zcor) / 10
+    ]
+    [
+      tilt-down pitch
+    ]
+    if (round pitch = 0 and zcor - alt > -0.1) [
+      set take-off? true
+    ]
+  ]
+end
+
+
+;Fonction d'atterissage des drones. On se dirige d'abord vers un patch intermédiaire puis on abaisse l'orientation par rapport au sol du drone
+to atterissage-drone [drone-chois]
+  let pos-decollage-x ((min [pxcor] of (patches with [hangar? and pzcor = mapAlt])) - 2)
+  let pos-decollage-y ((min [pycor] of (patches with [hangar? and pzcor = mapAlt])))
+  let pos-avt-decollage-x ((max [pxcor] of (patches with [hangar? and pzcor = mapAlt])) - 2)
+  let pos-avt-decollage-y ((max [pycor] of (patches with [hangar? and pzcor = mapAlt])) + 5)
+  ask drone-chois[
+    let headingFlag 0
+    ifelse (not can-land?)[     ;Si on ne peut pas se poser, on se dirige vers le patch situé devant la base
+      set headingFlag (towards patch pos-avt-decollage-x pos-avt-decollage-y zcor)
+      if (patch-here = patch pos-avt-decollage-x pos-avt-decollage-y zcor)[;Une fois arrivé sur le patch on passe can-lan? à true pour pouvoir se poser
+        set can-land? true
+      ]
+    ]
+    [
+      set headingFlag (towards patch pos-decollage-x pos-decollage-y 1);On définit une nouvelle cible pour le drone(point de départ des drones)
+      ifelse abs zcor > (solAlt + 0.05)[ ;Atterissage des drones
+        tilt-down abs (zcor) / 10
       ]
       [
-        tilt-down pitch / 10
+        tilt-up pitch ;une fois arrivé au sol on redresse le nez du drone
       ]
-
-      ifelse (round pitch = 0 and zcor - alt > -0.1) [set take-off? true set next-take-off? true]
-      [set next-take-off? false]
-  ]
-end
-
-
-
-to atterissage-drone
-  let base-min-pxcor min [pxcor] of (patches with [hangar? and pzcor = mapAlt])
-  let base-min-pycor min [pycor] of (patches with [hangar? and pzcor = mapAlt])
-  let pos-avt-decollage-x max [pxcor] of (patches with [hangar? and pzcor = mapAlt])
-  let pos-avt-decollage-y max [pycor] of (patches with [hangar? and pzcor = mapAlt])
-  set pos-avt-decollage-x pos-avt-decollage-x - 3
-  set pos-avt-decollage-y pos-avt-decollage-y + 2
-  ask drones[
-    show (heading - towards patch pos-avt-decollage-x pos-avt-decollage-y 1)
-    let  headingFlag (towards patch pos-avt-decollage-x pos-avt-decollage-y 1)
+      if (round pitch = 0 and zcor < 2) [  ;Une fois qu'on a touché le sol on place le drone dans sa poisiton initial de décollage
+        set take-off? false
+        set can-take-off? true
+        set atterissage? false
+        move-to patch pos-decollage-x pos-decollage-y 1
+        set heading 0
+        set roll 0
+        set pitch 0
+        set can-land? false
+        set headingFlag 0
+        set fuel max-fuel
+      ]
+    ]
     let dirCorrection subtract-headings headingFlag heading
-    if dirCorrection > 10[set dirCorrection 10]
+    if dirCorrection > 5[set dirCorrection 5]
+    if dirCorrection < -5[set dirCorrection -5]
     rt dirCorrection
-;    set heading towards patch pos-avt-decollage-x pos-avt-decollage-y 1
+
   ]
 end
 
+
+;Dirige le drone vers un patch (si l'altitude le permet on va jusqu'au patch en ligne droite)
+to go-to-drone [goal]
+  ifelse alt > basseAlt[ ; si on peut(on est au dessus des montagnes) on vole en ligne droite jusqu'a l'objectif
+    let headingFlag (towards goal)
+    let dirCorrection subtract-headings headingFlag heading
+    if dirCorrection > 5[set dirCorrection 5]
+    if dirCorrection < -5[set dirCorrection -5]
+    rt dirCorrection
+  ]
+  []
+end
+
+;Donne l'ordre au drone de retrouner a la base
+to ravitaillement
+  ask one-of drones [ set atterissage? true]
+end
+
+
+;Affichage du rayon de comm
+to display-range
+
+  clear-drawing
+  foreach sort-on [who] drones[
+    let patch-com patch 0 0 0
+    ask ? [set patch-com patch-here]
+
+      create-turtles 1
+      [
+        set color green
+        set size 2 * range-com
+        set shape "circle-com"
+        move-to patch-com
+        stamp
+        die ]
+  ]
+end
+
+
+to test
+  ask drones [go-to-drone ([patch-here] of convoi 0)]
+end
 
 to go
   convois-think
@@ -961,8 +1069,13 @@ to go
   enemies-move
   move-missiles
   drones-move
-  if atterissage-drone?
-  [atterissage-drone]
+  if(test? ) [
+    test
+  ]
+  ifelse(display-range?)[
+  display-range
+  ]
+  [clear-drawing]
   tick
 end
 @#$#@#$#@
@@ -1089,10 +1202,10 @@ nb-rivers
 Number
 
 INPUTBOX
-663
-185
-824
-245
+616
+178
+777
+238
 astar-faster
 20
 1
@@ -1100,10 +1213,10 @@ astar-faster
 Number
 
 INPUTBOX
-663
-259
-824
-319
+616
+252
+777
+312
 astar-max-depth
 10000
 1
@@ -1111,10 +1224,10 @@ astar-max-depth
 Number
 
 SWITCH
-471
-183
-635
-216
+424
+176
+588
+209
 astar-longpath
 astar-longpath
 1
@@ -1122,10 +1235,10 @@ astar-longpath
 -1000
 
 SWITCH
-471
-227
-634
-260
+424
+220
+587
+253
 astar-randpath
 astar-randpath
 1
@@ -1133,10 +1246,10 @@ astar-randpath
 -1000
 
 SWITCH
-468
-320
-630
-353
+421
+313
+583
+346
 astar-visu-more
 astar-visu-more
 1
@@ -1144,10 +1257,10 @@ astar-visu-more
 -1000
 
 SWITCH
-469
-272
-632
-305
+422
+265
+585
+298
 astar-visu
 astar-visu
 0
@@ -1190,10 +1303,10 @@ Simulation
 1
 
 TEXTBOX
-461
-154
-611
-172
+414
+147
+564
+165
 A*
 12
 0.0
@@ -1378,10 +1491,10 @@ nb-drones
 Number
 
 BUTTON
-425
-357
-572
-390
+403
+355
+550
+388
 watch drone
 let tmp one-of drones with [not dead? ]\nif tmp != nobody \n[watch one-of drones with [not dead? ]]
 NIL
@@ -1395,10 +1508,10 @@ NIL
 1
 
 BUTTON
-425
-396
-571
-429
+403
+394
+549
+427
 follow drone
 let tmp one-of drones with [not dead? ]\nif tmp != nobody \n[follow one-of drones with [not dead? ]]
 NIL
@@ -1412,10 +1525,10 @@ NIL
 1
 
 BUTTON
-433
-448
-567
-481
+411
+446
+545
+479
 ride drone
 let tmp one-of drones with [not dead? ]\nif tmp != nobody \n[ride one-of drones]
 NIL
@@ -1428,13 +1541,57 @@ NIL
 NIL
 1
 
+SWITCH
+698
+89
+801
+122
+test?
+test?
+1
+1
+-1000
+
+SWITCH
+208
+247
+344
+280
+display-range?
+display-range?
+1
+1
+-1000
+
+SWITCH
+673
+421
+816
+454
+show-intentions
+show-intentions
+1
+1
+-1000
+
+SWITCH
+672
+382
+818
+415
+show_messages
+show_messages
+1
+1
+-1000
+
 BUTTON
-485
-92
-616
-125
+579
+87
+684
+120
 NIL
-atterissage-drone\n
+ravitaillement\n
 NIL
 1
 T
@@ -1443,6 +1600,26 @@ NIL
 NIL
 NIL
 NIL
+1
+
+TEXTBOX
+676
+349
+826
+367
+Communication\n
+11
+0.0
+1
+
+TEXTBOX
+581
+66
+731
+84
+Drones
+11
+0.0
 1
 
 @#$#@#$#@
