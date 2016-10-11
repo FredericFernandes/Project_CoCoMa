@@ -1,0 +1,38 @@
+to voxelize-object[the-object]
+  no-display
+  let the-triangles [object-triangles] of the-object
+  print "rasterizing..."
+  foreach the-triangles [
+    ;print ?
+    ;hilight-triangle ?
+    voxelize-triangle ?
+    ;unhilight-triangle ? 
+  ]
+  ;reject-patches-outside-bbox-of the-object
+  ask patches [set _color pcolor]
+  display
+end
+
+to voxelize-triangle[the-triangle]  
+  let a turtle-to-vector [triangle-a] of the-triangle
+  let b turtle-to-vector [triangle-b] of the-triangle
+  let c turtle-to-vector [triangle-c] of the-triangle
+  voxelize-recursive a b c 
+end
+
+to voxelize-recursive[a b c]
+  let center centerpoint a b c
+  colorize-patch-at a get-color-for-vector a
+  colorize-patch-at b get-color-for-vector b
+  colorize-patch-at c get-color-for-vector c
+  colorize-patch-at center get-color-for-vector center
+  if longest-edge a b c > 1 [
+    let ab-mid scale-vector (add-vectors a b) 0.5
+    let bc-mid scale-vector (add-vectors b c) 0.5
+    let ac-mid scale-vector (add-vectors a c) 0.5
+    voxelize-recursive a ab-mid ac-mid 
+    voxelize-recursive ab-mid b bc-mid 
+    voxelize-recursive bc-mid c ac-mid 
+    voxelize-recursive ab-mid bc-mid ac-mid 
+  ]      
+end

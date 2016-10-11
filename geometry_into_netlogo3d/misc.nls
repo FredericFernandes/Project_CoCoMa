@@ -1,0 +1,80 @@
+to colorize-patch-at[the-vector the-color]
+  ask patch item 0 the-vector item 1 the-vector item 2 the-vector [
+    set pcolor the-color
+  ]  
+end
+
+to-report get-color-for-vector[the-vector]
+  report get-color-for-coordinates item 0 the-vector item 1 the-vector item 2 the-vector  
+end
+
+to-report get-color-for-coordinates[x y z]
+  report scale-color blue z min-pzcor max-pzcor
+end
+
+to-report get-color-for-edge[the-edge]
+  let a turtle-to-vector [end1] of the-edge
+  let b turtle-to-vector [end2] of the-edge
+  let center scale-vector (add-vectors a b) 0.5
+  report get-color-for-vector center
+  
+end
+
+
+;to hilight-triangle[the-triangle]
+;  ask the-triangle [
+;    ask edge [who] of triangle-a [who] of triangle-b [
+;      set color yellow
+;    ]
+;    ask edge [who] of triangle-b [who] of triangle-c [
+;      set color yellow
+;    ]
+;    ask edge [who] of triangle-c [who] of triangle-a [
+;      set color yellow
+;    ]
+;  ]
+;end
+;
+;to unhilight-triangle[the-triangle]
+;  ask the-triangle [
+;    ask edge [who] of triangle-a [who] of triangle-b [
+;      set color gray
+;    ]
+;    ask edge [who] of triangle-b [who] of triangle-c [
+;      set color gray
+;    ]
+;    ask edge [who] of triangle-c [who] of triangle-a [
+;      set color gray
+;    ]
+;  ]
+;end
+
+;to reject-patches-outside-bbox-of[ the-object ]
+;  let object-bbox bbox the-object
+;  clear-patches-outside object-bbox  
+;end
+
+
+
+;to clear-patches-outside[the-bbox]
+;  ask patches [
+;    if pxcor < item 0 the-bbox [
+;      set pcolor black
+;    ]
+;    if pxcor > item 1 the-bbox [
+;      set pcolor black
+;    ]
+;    if pycor < item 2 the-bbox [
+;      set pcolor black
+;    ]
+;    if pycor > item 3 the-bbox [
+;      set pcolor black
+;    ]
+;    if pzcor < item 4 the-bbox [
+;      set pcolor black
+;    ]
+;    if pzcor > item 5 the-bbox [
+;      set pcolor black
+;    ]
+;  ]
+;end

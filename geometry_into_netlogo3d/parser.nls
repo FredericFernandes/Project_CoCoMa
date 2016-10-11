@@ -1,0 +1,215 @@
+; PARSER LIBRARY
+; ------------------------------------------------------------------------------
+; author: Gabriel Wurzer
+; ==============================================================================
+
+
+; remove all whitespace
+to-report trim [ in ]
+  ;print (word "trim " in)
+  let out in  
+  ;print out
+  if (length out > 0) [
+    ; cut front
+    let i 0
+    while [(i < length out) and (item i out = " ")] [
+      set i (i + 1)
+    ] 
+    set out (substring out i length out)
+    ; cut back
+    set i (length out)
+    while [(i > 0) and (item (i - 1) out = " ")] [
+      set i (i - 1)
+    ]
+    set out (substring out 0 i)
+    ;print (word "after remove space" out)
+  ]
+  report out  
+end
+
+to-report until[what in]
+  let out ""
+  let i 0
+  while[i < length in][
+    let char item i in
+    ifelse char = what [
+      report out
+    ][
+      set out (word out char)
+    ]
+    set i (i + 1)
+  ]
+  report out
+end
+
+to-report remove-doublechars [ in double-char ]
+  let out ""
+  let i 0
+  let space? false
+  while [i < length in] [
+    let char item i in
+    ifelse char = double-char [
+      if space? = false [
+        ; only append the first space 
+        set out (word out char)
+        ; and set the space flag to true
+        set space? true
+      ]
+    ][
+      set space? false
+      set out (word out char)
+    ]
+    set i (i + 1)
+  ]
+  report out
+end
+
+; create a list out of string in, by splitting the string at the supplied char
+to-report tokenize[in delimiter] ;return-delimiter allow-empty]
+  let out []
+  let i 0
+  let j 0
+  while[ j <= length in ][
+    if j = length in or item j in = delimiter [    
+      let token substring in i j
+      ;if not return-delimiter [
+        set token remove delimiter token        
+      ;]
+      if length token > 0 [ ;or allow-empty
+        ;print (word "**token from " i " to " j ": " token)
+        set out lput token out 
+        set i (j + 1)
+      ]
+    ]
+    set j (j + 1)
+  ]
+  report out
+end
+
+
+to-report is-suffix? [in string]
+  let inlen length in
+  ;print (word in " (" inlen " chars)")
+  let stringlen length string  
+  ;print (word string " (" stringlen " chars)")
+  let pos position in string
+  ;print (word "position of '" in "' in '" string "': " pos)
+  let rightpos (- (inlen - stringlen))
+  ;print (word "should be: " rightpos)
+  report (pos = rightpos)
+end
+
+to-report encode-string [ in ]
+  report (replace-specialchars-by-placeholders in)
+end
+
+to-report decode-string [ in ]
+  report (word "\"" (replace-placeholders-by-specialchars in) "\"")
+end
+
+to-report replace-specialchars-by-placeholders[in]
+  let out in
+  ;encode comma as -COMMA-
+  let pos position "," out
+  while [pos != false][
+    set out replace-item pos out "-COMMA-"
+    set pos position "," out
+  ]
+  ;encode quotes as -QUOTE-
+  set pos position "\"" out
+  while [pos != false][
+    set out replace-item pos out "-QUOTE-"
+    set pos position "\"" out
+  ]      
+  ;encode quotes as -QUOTE-
+  set pos position ";" out
+  while [pos != false][
+    set out replace-item pos out "-SEMICOLON-"
+    set pos position ";" out
+  ]        
+  report out
+end
+
+to-report replace-placeholders-by-specialchars[in]
+  let out in
+  let pos position "-COMMA-" out
+  while [pos != false][
+    let before substring out 0 pos
+    let after substring out (pos + length "-COMMA-") (length out)
+    set out (word before "," after)
+    set pos position "-COMMA-" out
+  ]
+  set pos position "-QUOTE-" out
+  while [pos != false][
+    let before substring out 0 pos
+    let after substring out (pos + length "-QUOTE-") (length out)
+    set out (word before "\\\"" after)
+    set pos position "-QUOTE-" out
+  ]
+  set pos position "-SEMICOLON-" out
+  while [pos != false][
+    let before substring out 0 pos
+    let after substring out (pos + length "-SEMICOLON-") (length out)
+    set out (word before ";" after)
+    set pos position "-SEMICOLON-" out
+  ]  
+  report out
+end
+
+to-report encode-type [ in ]
+  let result ""
+  if in = Nobody [
+    set result "-NOBODY-"
+  ]
+  if is-string? in [
+    set result (word "-STRING-" (replace-specialchars-by-placeholders in))
+  ]
+  if is-number? in [
+    set result (word "-NUMBER-" in)
+  ]
+  if is-boolean? in [
+    set result (word "-BOOLEAN-" in)
+  ]  
+  if is-list? in [
+    set result "-LIST-"
+    foreach in [
+      set result (word result encode-type ? ";")
+    ]
+  ]
+  report result
+end
+
+to-report decode-type [ in ]
+  let result ""
+  if position "-NOBODY-" in = 0 [
+    set result Nobody
+  ]
+  if position "-STRING-" in = 0 [
+    set result substring in (length "-STRING-") (length in)
+    set result replace-placeholders-by-specialchars result
+  ]
+  if position "-NUMBER-" in = 0 [
+    let number-as-string substring in (length "-NUMBER-") (length in)
+    set result (runresult number-as-string)
+  ]
+  if position "-BOOLEAN-" in = 0 [  
+    let boolean-as-string substring in (length "-BOOLEAN-") (length in)
+    set result (runresult boolean-as-string)
+  ]
+  if position "-LIST-" in = 0 [
+    set result "(list "
+    let items-as-string substring in (length "-LIST-") (length in)    
+    let items tokenize items-as-string ";" ;false false
+    foreach items [
+      let decoded (decode-type ?)
+      if is-string? decoded [
+        set decoded (word "\"" decoded "\"")
+      ]
+      set result (word result " " decoded)
+    ]
+    set result (word result ")")
+    ;print result
+    set result runresult result
+  ]
+  report result
+end

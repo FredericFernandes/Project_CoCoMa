@@ -82,6 +82,8 @@ drones-own[
 
 to setup
     clear-turtles
+    load-shapes-3d "shapes3D/MQ27.n3d"
+    load-shapes-3d "shapes3D/rayon-com.n3d"
   ; The setup generates environments until one of them is acceptable (the convoi can accomplish the mission)
   print "***********************"
   print "       SETUP           "
@@ -893,10 +895,9 @@ to setup-drones
   ask drones
   [
     ; Init apparence NetLogo
-    set shape "airplane"
-    set color white
-
-
+    set shape "drone"
+    set color gray
+    set size 0.15
     ; Init vars drones
     set speed 0.5 * simu-speed
     set heading 0
@@ -907,11 +908,12 @@ to setup-drones
 
     move-to patch (base-min-pxcor - 2) base-min-pycor 1
     set comportement 0
-    set range-com 20
+    set range-com 5
     set can-take-off? false
     set can-land? false
     set atterissage? false
-    set label who ; display the drones names
+    set label-color black
+    set label 1 ; display the drones names
     set conv-followed (one-of convois with [leader? and not finished? and not dead?])
     set incoming-queue []
     set fuel max-fuel
@@ -926,8 +928,8 @@ to setup-drones
       hatch-cercles 1
       [
         set color green
-        set size 2 * [range-com] of myself
-        set shape "circle-com"
+        set size 0.15 * [range-com] of myself
+        set shape "rayon-com"
         move-to myself
         ;stamp
         ;die
@@ -1533,7 +1535,7 @@ INPUTBOX
 220
 159
 nb-drones
-1
+5
 1
 0
 Number
@@ -1596,14 +1598,14 @@ SWITCH
 122
 test?
 test?
-1
+0
 1
 -1000
 
 SWITCH
 208
 247
-344
+348
 280
 display-range?
 display-range?
@@ -1775,7 +1777,7 @@ Circle -7500403 true true 0 0 300
 Circle -16777216 true false 30 30 240
 
 circle-com
-true
+false
 0
 Circle -7500403 false true 44 44 212
 
@@ -1795,6 +1797,11 @@ dot
 false
 0
 Circle -7500403 true true 90 90 120
+
+drone
+true
+0
+Polygon -7500403 true true 150 0 165 15 180 60 180 105 285 165 285 195 180 180 165 240 195 270 180 285 150 270 120 285 90 270 135 240 120 180 15 195 15 165 120 105 120 60 135 15
 
 face happy
 false
@@ -1950,6 +1957,11 @@ Polygon -7500403 true true 165 180 165 210 225 180 255 120 210 135
 Polygon -7500403 true true 135 105 90 60 45 45 75 105 135 135
 Polygon -7500403 true true 165 105 165 135 225 105 255 45 210 60
 Polygon -7500403 true true 135 90 120 45 150 15 180 45 165 90
+
+rayon-com
+false
+0
+Circle -7500403 false true 44 44 212
 
 sheep
 false

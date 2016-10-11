@@ -1,0 +1,166 @@
+__includes ["parser.nls"]
+
+patches-own [
+  _color
+]
+
+breed[objects object]
+objects-own [
+  object-name
+  object-vertices  
+  object-triangles
+]
+
+breed[vertices vertex]
+vertices-own [
+  original-x
+  original-y
+  original-z
+]
+
+breed[triangles triangle]
+triangles-own [
+  triangle-a 
+  triangle-b
+  triangle-c
+]
+
+undirected-link-breed [edges edge]
+
+;
+; imports filename as wireframe into netlogo, using the above types
+;
+to import-obj[filename]
+  carefully [
+	reset-timer
+    start-import
+    print (word "opening " filename)
+    file-open filename  
+    start-object filename
+    while[not file-at-end?][
+      let line trim file-read-line
+      ;print line    
+      if not empty? line [
+        let tokens tokenize line " "      
+        let command item 0 tokens
+        if command = "o" [
+          parse-object tokens
+        ]
+        if command = "v" [
+          parse-vertex tokens
+        ]
+        if command = "f" [
+          parse-face tokens
+        ]
+      ]
+    ]
+    end-object
+  ][
+    print error-message 
+  ]
+  file-close
+  update-object-names
+  print "end reading file"
+  print (word "reading during: " timer " secs ")
+end
+
+to update-object-names 
+  let object-names [object-name] of objects
+  goo:set-chooser-items "choose-an-object" object-names
+end
+
+to start-import
+  print (word "starting new import...")
+  clear-all
+end 
+
+to start-object[name]
+  print (word "new object " name)
+  create-objects 1 [
+    set hidden? true
+    set object-name name
+    set object-vertices []
+    set object-triangles []
+    set current-object self
+  ]  
+end
+
+to end-object
+  print (word "ending object " [object-name] of current-object)
+  print (word "(" [length object-vertices] of current-object " vertices and " [length object-triangles] of current-object " faces )")    
+end
+ 
+to parse-object [tokens]
+  end-object
+  start-object item 1 tokens
+end
+
+to parse-vertex [tokens]
+  let x runresult item 1 tokens
+  let y runresult item 2 tokens
+  let z runresult item 3 tokens
+  create-vertices 1 [
+    set hidden? true
+    set heading 0
+    set pitch 0
+    set roll 0
+    set color white
+    set original-x x
+    set original-y y 
+    set original-z z
+    let the-vertex self
+    ask current-object [
+      set object-vertices lput the-vertex object-vertices
+    ]    
+    setxyz x * scale y * scale z * scale
+    set size scale
+  ]
+end
+
+to parse-face [tokens]
+  let vertices-in-surface (length tokens) - 1
+  let a-index ((runresult until "/" item 1 tokens) - 1)
+  let b-index ((runresult until "/" item 2 tokens) - 1)
+  let c-index ((runresult until "/" item 3 tokens) - 1)
+  create-triangles 1 [
+    set hidden? true
+    set triangle-a [item a-index object-vertices] of current-object
+    set triangle-b [item b-index object-vertices] of current-object
+    set triangle-c [item c-index object-vertices] of current-object
+    connect-vertices
+    ask current-object [
+      set object-triangles lput myself object-triangles
+    ]
+  ]  
+  if vertices-in-surface = 4 [
+    let d-index ((runresult until "/" item 4 tokens) - 1)    
+    create-triangles 1 [
+      set hidden? true
+      set triangle-a [item a-index object-vertices] of current-object
+      set triangle-b [item c-index object-vertices] of current-object
+      set triangle-c [item d-index object-vertices] of current-object
+      connect-vertices
+      ask current-object [
+        set object-triangles lput myself object-triangles
+      ]
+    ]        
+  ]
+end
+
+to connect-vertices
+  ask triangle-a [    
+    create-edge-with [triangle-b] of myself [
+      set color get-color-for-edge self
+    ]   
+  ]  
+  ask triangle-b [
+    create-edge-with [triangle-c] of myself [
+      set color get-color-for-edge self
+    ]      
+  ]  
+  ask triangle-c [
+    create-edge-with [triangle-a] of myself [
+      set color get-color-for-edge self
+    ]       
+  ]      
+end

@@ -1,0 +1,49 @@
+
+
+to-report write-n3d[the-object invert-normals?]
+  let center center-of-bbox bbox the-object 
+  let filename (word [object-name] of the-object ".n3d")
+  print (word "writing netlogo3D shape...")  
+  if file-exists? filename [
+    carefully [
+      file-delete filename
+      print (word "...by overwriting " filename)
+    ][
+      user-message (word 
+        "damn. could not delete 3d shape file " filename 
+        "\nsince it is already in use!\n"
+        "I will show you the currently stored shape! If\n"
+        "you want that regenerated, restart netlogo3d\n"
+        "and repeat the process (import wireframe, show faces).") 
+    ]
+  ]
+  file-open filename  
+  file-print (word "1")
+  ;file-print [object-name] of the-object
+  file-print "custom shape"
+  file-print "tris"
+  foreach [object-triangles] of the-object [
+      let a turtle-to-vector [triangle-a] of ?      
+      let b turtle-to-vector [triangle-b] of ?
+      let c turtle-to-vector [triangle-c] of ?
+      let u normalize-vector subtract-vectors c a
+      let v normalize-vector subtract-vectors b a            
+      let normal cross-vectors u v
+      if invert-normals? [
+        set normal invert-vector normal
+      ]
+      ; transform to coordinates relative to center
+      ;set a subtract-vectors a center
+      ;set b subtract-vectors b center
+      ;set c subtract-vectors c center
+      ; output
+      file-print (word "normal: " item 0 normal " " item 1 normal " " item 2 normal)
+      file-print (word item 0 a " " item 1 a " " item 2 a)
+      file-print (word item 0 b " " item 1 b " " item 2 b)
+      file-print (word item 0 c " " item 1 c " " item 2 c)
+  ]
+  file-print "stop"
+  file-print "end-shape"
+  file-close
+  report filename
+end

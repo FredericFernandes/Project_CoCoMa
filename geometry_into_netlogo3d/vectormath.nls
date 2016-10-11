@@ -1,0 +1,173 @@
+to-report turtle-to-vector[what]
+  report (list
+    [xcor] of what 
+    [ycor] of what
+    [zcor] of what
+  )
+end
+
+to-report patch-to-vector[what]
+  report (list
+    [pxcor] of what 
+    [pycor] of what
+    [pzcor] of what
+  )
+end
+
+to-report subtract-vectors [a b]
+  report (list
+    ((item 0 a) - (item 0 b))
+    ((item 1 a) - (item 1 b))
+    ((item 2 a) - (item 2 b))
+  )    
+end
+
+to-report add-vectors [a b]
+  report (list
+    ((item 0 a) + (item 0 b))
+    ((item 1 a) + (item 1 b))
+    ((item 2 a) + (item 2 b))
+  )    
+end
+
+to-report scale-vector [a scalar]
+  report (list
+    ((item 0 a) * scalar)
+    ((item 1 a) * scalar)
+    ((item 2 a) * scalar)
+  )    
+end
+
+to-report vector-length[the-vector]
+  let vx item 0 the-vector
+  let vy item 1 the-vector
+  let vz item 2 the-vector
+  report sqrt (vx * vx + vy * vy + vz * vz)
+end
+
+to-report normalize-vector[the-vector]
+  let vlen vector-length the-vector
+  report (list 
+    ((item 0 the-vector) / vlen)
+    ((item 1 the-vector) / vlen)
+    ((item 2 the-vector) / vlen)
+  )
+end
+
+to-report resize-vector[the-vector the-scale]
+  let vlen vector-length the-vector
+  let scaledx (item 0 the-vector / vlen) * the-scale
+  let scaledy (item 1 the-vector / vlen) * the-scale
+  let scaledz (item 2 the-vector / vlen) * the-scale
+  report (list scaledx scaledy scaledz)
+end
+
+to-report cross-vectors[a b]
+  let normal (list
+    ((item 1 a * item 2 b) - (item 2 a * item 1 b))
+    ((item 2 a * item 0 b) - (item 0 a * item 2 b))
+    ((item 0 a * item 1 b) - (item 1 a * item 0 b))    
+  )
+  report normal
+end
+
+to-report invert-vector[the-vector]
+  report (list
+    (-1 * item 0 the-vector)
+    (-1 * item 1 the-vector)
+    (-1 * item 2 the-vector)
+  )
+end
+
+
+
+
+to-report get-edge-vector[v1 v2]
+  let x [xcor] of v1
+  let y [ycor] of v1
+  let z [zcor] of v1
+  let vx [xcor] of v2 - x
+  let vy [ycor] of v2 - y
+  let vz [zcor] of v2 - z
+  report (list vx vy vz)
+end
+
+to-report centerpoint[a b c]
+  report (list
+     ((item 0 a + item 0 b + item 0 c) / 3)
+     ((item 1 a + item 1 b + item 1 c) / 3)
+     ((item 2 a + item 2 b + item 2 c) / 3)
+  )
+end
+
+to-report longest-edge[a b c]
+  let ab subtract-vectors b a
+  let bc subtract-vectors c b
+  let ac subtract-vectors c a
+  let lengths (list (vector-length ab) (vector-length bc) (vector-length ac))
+  report max lengths
+end
+
+;to-report triangle-area[a b c]   
+;  let u subtract-vectors c a
+;  let v subtract-vectors b a
+;  let n cross-vectors u v
+;  let n-length vector-length n
+;  let area abs (n-length / 2.0)
+;  report area
+;end
+
+to-report bbox[the-object]  
+  let minx 10000000
+  let maxx -10000000
+  let miny 10000000
+  let maxy -10000000
+  let minz 10000000
+  let maxz -10000000
+  foreach [object-triangles] of the-object [
+    let points (list turtle-to-vector [triangle-a] of ? turtle-to-vector [triangle-b] of ? turtle-to-vector [triangle-c] of ?)
+    foreach points [
+      let x item 0 ?
+      let y item 1 ?
+      let z item 2 ?
+      
+      if x < minx [
+        set minx x
+      ]
+      if x > maxx [
+        set maxx x
+      ]
+      
+      if y < miny [
+        set miny y
+      ]
+      if y > maxy [
+        set maxy y
+      ]
+                  
+      if z < minz [
+        set minz z
+      ]
+      if z > maxz [
+        set maxz z
+      ]
+    ]
+  ]
+  let the-bbox (list minx maxx miny maxy minz maxz)
+  print (word [object-name] of the-object " bbox: " the-bbox)
+  report the-bbox  
+end
+
+to-report center-of-bbox[the-bbox]
+  let minx item 0 the-bbox
+  let maxx item 1 the-bbox
+  let miny item 2 the-bbox
+  let maxy item 3 the-bbox
+  let minz item 4 the-bbox
+  let maxz item 5 the-bbox
+  report (list 
+    ((minx + maxx) / 2)
+    ((miny + maxy) / 2)
+    ((minz + maxz) / 2)
+  )
+end
