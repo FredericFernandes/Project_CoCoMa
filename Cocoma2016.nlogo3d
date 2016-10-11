@@ -210,9 +210,6 @@ to setup-env
   ask patches with[pzcor <= solAlt and pxcor >= 0 and pxcor < 3 and pycor >= 0 and pycor < 5][set pcolor 3 set obstacle? true set base? false set hangar? false] ; Batiment
   ask patches with [pzcor < 5 and pxcor = 0 and pycor = 0 and pzcor > 0 ] [ set pcolor 3 set obstacle? true set base? false set hangar? false] ; Antenne
 
-  ; Copie des obstacles: on s'assure que les patchs au niveau solAlt ont la meme valeur obstacle? que leur patch en-dessous au niveau mapAlt (assure que enemy-random-move fonctionne bien et facilite la detection des obstacles car pas besoin de regarder au niveau mapAlt mais directement dans les patchs solAlt)
-  ask patches with [[obstacle?] of patch-at 0 0 -1] [set obstacle? true]
-
   ; Montagnes
   let nb-Montagne-create 0
   let continu true
@@ -225,8 +222,11 @@ to setup-env
   ]
   print (word "Il y a " nb-Montagne-create " montagne(s) de crée(s).")
 
+  ; Copie des obstacles: on s'assure que les patchs au niveau solAlt ont la meme valeur obstacle? que leur patch en-dessous au niveau mapAlt (assure que enemy-random-move fonctionne bien et facilite la detection des obstacles car pas besoin de regarder au niveau mapAlt mais directement dans les patchs solAlt)
+  ask patches with [[obstacle?] of patch-at 0 0 -1] [set obstacle? true]
     ; Objectif
   ask one-of patches with[obstacle? = false and base? = false and hangar? = false and pxcor >= (max-pxcor / 2) and pycor >= (max-pycor / 2) and pzcor = mapAlt][set objectif? true ask patch-at 0 0 2 [set pcolor yellow set marker-goal? true]]
+
 
 
 end
@@ -239,9 +239,14 @@ to-report create-Montagne
   while [(not correct) and (nbMaxIterration != 0)][
     set centre one-of patches with [patchIsGround?] ; on tire un nouveau centre de montagne aléatoire
     set voisinsOfCentre (patches with [(distance-nowrap centre < basseAlt + 1) and  not (pzcor = 0)  ]) ; on récupérer les voisins de "centre"
-    set correct (all? voisinsOfCentre [patchIsAir? ]) ; continu est vrai si tous les patches de "voisinsOfCentre" sont libres ( pas d'obstacle , pas de base , etc ... )
+    set correct (all? voisinsOfCentre [patchIsAir? and ([not obstacle? and not base? and not hangar?] of patch-at 0 0 -1) ]) ; continu est vrai si tous les patches de "voisinsOfCentre" sont libres ( pas d'obstacle , pas de base , etc ... )
     set nbMaxIterration nbMaxIterration - 1
   ]
+
+
+
+
+
   if correct [
     ; on vient de trouver une montagne avec assez d'espace autour
     ask voisinsOfCentre [
@@ -707,12 +712,12 @@ end
 
 ;; Fonction utilisé dans un contexte de patch , et elle teste si le patch est une case de type sol
 to-report patchIsGround?
-    report ( not obstacle? and not base? and not hangar? and not objectif? and pzcor = mapAlt and not marker-goal?)
+    report ( pzcor = mapAlt and not obstacle? and not base? and not hangar? and not objectif? and not marker-goal?)
 end
 
 ;; Fonction utilisé dans un contexte de patch , qui teste si le patch est une case vide de type air
 to-report patchIsAir?
-  report ( not (pzcor = 0) and not obstacle? and not base? and not hangar? and not objectif? and not bridge? and not marker-goal? )
+  report ( not (pzcor = mapAlt) and not obstacle? and not base? and not hangar? and not objectif? and not bridge? and not marker-goal? )
 
 end
 
