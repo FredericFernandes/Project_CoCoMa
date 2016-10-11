@@ -71,6 +71,7 @@ drones-own[
   atterissage?
   incoming-queue ;Liste pour les message a initialiser à []
   fuel ; essence
+  conv-followed
 ]
 
 ;***********************
@@ -210,6 +211,9 @@ to setup-env
   ask patches with[pzcor <= solAlt and pxcor >= 0 and pxcor < 3 and pycor >= 0 and pycor < 5][set pcolor 3 set obstacle? true set base? false set hangar? false] ; Batiment
   ask patches with [pzcor < 5 and pxcor = 0 and pycor = 0 and pzcor > 0 ] [ set pcolor 3 set obstacle? true set base? false set hangar? false] ; Antenne
 
+  ; Copie des obstacles: on s'assure que les patchs au niveau solAlt ont la meme valeur obstacle? que leur patch en-dessous au niveau mapAlt (assure que enemy-random-move fonctionne bien et facilite la detection des obstacles car pas besoin de regarder au niveau mapAlt mais directement dans les patchs solAlt)
+  ask patches with [[obstacle?] of patch-at 0 0 -1] [set obstacle? true]
+
   ; Montagnes
   let nb-Montagne-create 0
   let continu true
@@ -222,11 +226,8 @@ to setup-env
   ]
   print (word "Il y a " nb-Montagne-create " montagne(s) de crée(s).")
 
-  ; Copie des obstacles: on s'assure que les patchs au niveau solAlt ont la meme valeur obstacle? que leur patch en-dessous au niveau mapAlt (assure que enemy-random-move fonctionne bien et facilite la detection des obstacles car pas besoin de regarder au niveau mapAlt mais directement dans les patchs solAlt)
-  ask patches with [[obstacle?] of patch-at 0 0 -1] [set obstacle? true]
     ; Objectif
   ask one-of patches with[obstacle? = false and base? = false and hangar? = false and pxcor >= (max-pxcor / 2) and pycor >= (max-pycor / 2) and pzcor = mapAlt][set objectif? true ask patch-at 0 0 2 [set pcolor yellow set marker-goal? true]]
-
 
 
 end
@@ -239,14 +240,9 @@ to-report create-Montagne
   while [(not correct) and (nbMaxIterration != 0)][
     set centre one-of patches with [patchIsGround?] ; on tire un nouveau centre de montagne aléatoire
     set voisinsOfCentre (patches with [(distance-nowrap centre < basseAlt + 1) and  not (pzcor = 0)  ]) ; on récupérer les voisins de "centre"
-    set correct (all? voisinsOfCentre [patchIsAir? and ([not obstacle? and not base? and not hangar?] of patch-at 0 0 -1) ]) ; continu est vrai si tous les patches de "voisinsOfCentre" sont libres ( pas d'obstacle , pas de base , etc ... )
+    set correct (all? voisinsOfCentre [patchIsAir? ]) ; continu est vrai si tous les patches de "voisinsOfCentre" sont libres ( pas d'obstacle , pas de base , etc ... )
     set nbMaxIterration nbMaxIterration - 1
   ]
-
-
-
-
-
   if correct [
     ; on vient de trouver une montagne avec assez d'espace autour
     ask voisinsOfCentre [
@@ -712,12 +708,12 @@ end
 
 ;; Fonction utilisé dans un contexte de patch , et elle teste si le patch est une case de type sol
 to-report patchIsGround?
-    report ( pzcor = mapAlt and not obstacle? and not base? and not hangar? and not objectif? and not marker-goal?)
+    report ( not obstacle? and not base? and not hangar? and not objectif? and pzcor = mapAlt and not marker-goal?)
 end
 
 ;; Fonction utilisé dans un contexte de patch , qui teste si le patch est une case vide de type air
 to-report patchIsAir?
-  report ( not (pzcor = mapAlt) and not obstacle? and not base? and not hangar? and not objectif? and not bridge? and not marker-goal? )
+  report ( not (pzcor = 0) and not obstacle? and not base? and not hangar? and not objectif? and not bridge? and not marker-goal? )
 
 end
 
@@ -909,7 +905,7 @@ to setup-drones
       set can-land? false
       set atterissage? false
       set label who ; display the drones names
-
+      set conv-followed (one-of convois with [leader? and not finished? and not dead?])
       set incoming-queue []
       set fuel max-fuel
 
@@ -937,6 +933,7 @@ end
 
 ;Déplacement des drones à chaque ticks
 to drones-move
+  no-display
   foreach sort-on [who] drones[
     let patch-com patch 0 0 0
     ask ? [
@@ -961,6 +958,7 @@ to drones-move
       ]
     ]
   ]
+  display
 end
 
 
@@ -1002,9 +1000,9 @@ to atterissage-drone [drone-chois]
         tilt-down abs (zcor) / 10
       ]
       [
-        tilt-up pitch ;une fois arrivé au sol on redresse le nez du drone
+        tilt-up (- pitch) ;une fois arrivé au sol on redresse le nez du drone
       ]
-      if (round pitch = 0 and zcor < 2) [  ;Une fois qu'on a touché le sol on place le drone dans sa poisiton initial de décollage
+      if (round pitch = 0 and zcor < 2 and patch-here = patch pos-decollage-x pos-decollage-y 1) [  ;Une fois qu'on a touché le sol on place le drone dans sa poisiton initial de décollage
         set take-off? false
         set can-take-off? true
         set atterissage? false
@@ -1029,7 +1027,7 @@ end
 ;Dirige le drone vers un patch (si l'altitude le permet on va jusqu'au patch en ligne droite)
 to go-to-drone [goal]
   ifelse alt > basseAlt[ ; si on peut(on est au dessus des montagnes) on vole en ligne droite jusqu'a l'objectif
-    let headingFlag (towards goal)
+    let headingFlag (towards-nowrap goal)
     let dirCorrection subtract-headings headingFlag heading
     if dirCorrection > 5[set dirCorrection 5]
     if dirCorrection < -5[set dirCorrection -5]
@@ -1065,7 +1063,35 @@ end
 
 
 to test
-  ask drones [go-to-drone ([patch-here] of convoi 0)]
+  ask drones [
+    if([dead?] of conv-followed)[
+      set conv-followed (one-of convois with [leader? and not finished? and not dead?])
+    ]
+    go-to-drone ([patch-here] of conv-followed)
+  ]
+end
+
+
+;Booléen permettant de déterminer si deux agents peuvent communiquer
+to-report can-communicate [agent1 agent2]
+  let res true
+  ask agent1[
+    set res distancexy-nowrap ([pxcor] of [patch-here] of agent2) ([pycor] of [patch-here] of agent2) <= range-com
+  ]
+  report res
+end
+
+
+to send-msg [agent1 agent2]
+  if can-communicate agent1 agent2[
+    ask agent1[
+      let somemsg create-message "inform"
+      set somemsg add-receiver agent2 somemsg
+      set somemsg add-content "fire-at [23 15]" somemsg
+      send somemsg
+    ]
+  ]
+
 end
 
 to go
@@ -1490,7 +1516,7 @@ INPUTBOX
 220
 159
 nb-drones
-5
+1
 1
 0
 Number
@@ -1553,7 +1579,7 @@ SWITCH
 122
 test?
 test?
-1
+0
 1
 -1000
 
@@ -1564,7 +1590,7 @@ SWITCH
 280
 display-range?
 display-range?
-1
+0
 1
 -1000
 
@@ -1575,7 +1601,7 @@ SWITCH
 454
 show-intentions
 show-intentions
-1
+0
 1
 -1000
 
@@ -1586,7 +1612,7 @@ SWITCH
 415
 show_messages
 show_messages
-1
+0
 1
 -1000
 
@@ -1730,6 +1756,11 @@ false
 0
 Circle -7500403 true true 0 0 300
 Circle -16777216 true false 30 30 240
+
+circle-com
+false
+0
+Circle -7500403 false true 44 44 212
 
 cow
 false
