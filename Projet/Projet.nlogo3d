@@ -1,4 +1,4 @@
-__includes ["bdi.nls" "communication.nls"]
+__includes ["libs/bdi.nls" "libs/communication.nls"]
 breed [waypoints waypoint]
 breed [envconstructors envconstructor]
 breed [convois convoi]
