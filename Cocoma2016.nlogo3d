@@ -1064,10 +1064,12 @@ end
 
 to test
   ask drones [
-    if([dead?] of conv-followed)[
+    if(conv-followed = nobody or [dead?] of conv-followed)[
       set conv-followed (one-of convois with [leader? and not finished? and not dead?])
     ]
-    go-to-drone ([patch-here] of conv-followed)
+    if(conv-followed != nobody)[
+      go-to-drone ([patch-here] of conv-followed)
+    ]
   ]
 end
 
