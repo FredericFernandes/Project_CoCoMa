@@ -5,6 +5,7 @@ breed [convois convoi]
 breed [enemies enemie]
 breed [missiles missile]
 breed [drones drone]
+breed [cercles cercle]
 breed [HQs HQ]
 directed-link-breed [path-links path-link]
 undirected-link-breed [dummy-links dummy-link]
@@ -72,6 +73,7 @@ drones-own[
   incoming-queue ;Liste pour les message a initialiser à []
   fuel ; essence
   conv-followed
+  myTurtle;
 ]
 
 ;***********************
@@ -243,7 +245,7 @@ to-report create-Montagne
   let nbMaxIterration 100
   while [(not correct) and (nbMaxIterration != 0)][
     set centre one-of patches with [patchIsGround?] ; on tire un nouveau centre de montagne aléatoire
-    set voisinsOfCentre (patches with [(distance-nowrap centre < basseAlt + 1) and  not (pzcor = 0)  ]) ; on récupérer les voisins de "centre"
+    set voisinsOfCentre (patches with [(distance-nowrap centre < basseAlt ) and  not (pzcor = 0)  ]) ; on récupérer les voisins de "centre"
     set correct (all? voisinsOfCentre [patchIsAir? and ([not obstacle? and not base? and not hangar?] of patch-at 0 0 -1) ]) ; continu est vrai si tous les patches de "voisinsOfCentre" sont libres ( pas d'obstacle , pas de base , etc ... )
     set nbMaxIterration nbMaxIterration - 1
   ]
@@ -885,52 +887,61 @@ to setup-drones
   let base-min-pxcor min [pxcor] of (patches with [hangar? and pzcor = mapAlt])
   let base-min-pycor min [pycor] of (patches with [hangar? and pzcor = mapAlt])
 
-  if nb-drones > 0
+  if (nb-drones = 0) [stop]
+
+  create-drones nb-drones
+  ask drones
   [
-    create-drones nb-drones
-    ask drones
-    [
-      ; Init apparence NetLogo
-      set shape "airplane"
-      set color white
+    ; Init apparence NetLogo
+    set shape "airplane"
+    set color white
 
 
-      ; Init vars drones
-      set speed 0.5 * simu-speed
-      set heading 0
-      set roll 0
-      set pitch 0
-      set dead? false
-      set take-off? false
-      move-to patch (base-min-pxcor - 2) base-min-pycor 1
-      set comportement 0
-      set range-com 8
-      set can-take-off? false
-      set can-land? false
-      set atterissage? false
-      set label who ; display the drones names
-      set conv-followed (one-of convois with [leader? and not finished? and not dead?])
-      set incoming-queue []
-      set fuel max-fuel
+    ; Init vars drones
+    set speed 0.5 * simu-speed
+    set heading 0
+    set roll 0
+    set pitch 0
+    set dead? false
+    set take-off? false
 
-    ]
-    ask first (sort-on [who] drones)[
-      set can-take-off? true
-    ]
-
-    foreach sort-on [who] drones[
-      ask ? [
-        set comportement (random 3)
-        ifelse comportement = 2 [     ;Comportement "tir sur les enemies"
-          ask ? [set alt basseAlt]
-        ]
-        [
-          ask ? [set alt hauteAlt]    ;Autres comportements
-        ]
-
+    move-to patch (base-min-pxcor - 2) base-min-pycor 1
+    set comportement 0
+    set range-com 20
+    set can-take-off? false
+    set can-land? false
+    set atterissage? false
+    set label who ; display the drones names
+    set conv-followed (one-of convois with [leader? and not finished? and not dead?])
+    set incoming-queue []
+    set fuel max-fuel
+    set comportement (random 3)
+    ifelse comportement = 2 [     ;Comportement "tir sur les enemies"
+        set alt basseAlt
       ]
-    ]
+      [
+        set alt hauteAlt    ;Autres comportements
+      ]
+      let tmp nobody
+      hatch-cercles 1
+      [
+        set color green
+        set size 2 * [range-com] of myself
+        set shape "circle-com"
+        move-to myself
+        ;stamp
+        ;die
+        ;set ([myTurtle] of self) myself
+        set tmp self
+      ]
+      set myTurtle tmp
+
   ]
+  ask first (sort-on [who] drones)[
+    set can-take-off? true
+  ]
+
+
 end
 
 
@@ -960,6 +971,7 @@ to drones-move
 ;        fd speed / 10
         set fuel fuel - fuel-dec
       ]
+      ask myTurtle [ move-to myself ]
     ]
   ]
   display
@@ -1047,27 +1059,30 @@ end
 
 
 ;Affichage du rayon de comm
-to display-range
-
-  clear-drawing
-  foreach sort-on [who] drones[
-    let patch-com patch 0 0 0
-    ask ? [set patch-com patch-here]
-
-      create-turtles 1
-      [
-        set color green
-        set size 2 * range-com
-        set shape "circle-com"
-        move-to patch-com
-        stamp
-        die ]
-  ]
-end
+;to display-range
+;
+;  clear-drawing
+;  foreach sort-on [who] drones[
+;    let patch-com patch 0 0 0
+;    ask ? [set patch-com patch-here]
+;
+;      create-turtles 1
+;      [
+;        set color green
+;        set size 2 * range-com
+;        set shape "circle-com"
+;        move-to patch-com
+;        stamp
+;        die
+;      ]
+;  ]
+;end
 
 
 to test
   ask drones [
+;    if (conv-followed = nobody) [ stop]
+
     if(conv-followed = nobody or [dead?] of conv-followed)[
       set conv-followed (one-of convois with [leader? and not finished? and not dead?])
     ]
@@ -1109,10 +1124,6 @@ to go
   if(test? ) [
     test
   ]
-  ifelse(display-range?)[
-  display-range
-  ]
-  [clear-drawing]
   tick
 end
 @#$#@#$#@
@@ -1585,7 +1596,7 @@ SWITCH
 122
 test?
 test?
-0
+1
 1
 -1000
 
@@ -1764,7 +1775,7 @@ Circle -7500403 true true 0 0 300
 Circle -16777216 true false 30 30 240
 
 circle-com
-false
+true
 0
 Circle -7500403 false true 44 44 212
 
