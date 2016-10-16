@@ -74,6 +74,10 @@ drones-own[
   fuel ; essence
   conv-followed
   myTurtle;
+  move-up? ; Set to true if the drone is getting high in alt
+  move-down? ; Set to true if the drone is getting down in alt
+  as-path-drones
+  goal-drone
 ]
 
 ;***********************
@@ -106,7 +110,7 @@ to setup
     ]
     ; generate a path and check is the convoi can reach its destination. If not, generate a new env
     [
-      let start-path (plan-astar ([[patch-at 0 0 (pzcor * -1)] of patch-here] of one-of convois with [leader?]) (one-of patches with [objectif?]) false)
+      let start-path (plan-astar ([[patch-at 0 0 (pzcor * -1)] of patch-here] of one-of convois with [leader?]) (one-of patches with [objectif?]) false false)
       set as-path replace-item 0 as-path start-path
       if not empty? start-path [ set path-is-possible? true]
     ]
@@ -346,11 +350,11 @@ end
 ; Note: si l'heuristique est consistante/monotone (comme distance euclidienne/vol d'oiseau), h = 0 revient a faire Djikstra
 ; Note2: on l'utilise avec le convoi mais on peut l'utiliser avec n'importe quel agent, c'est generique.
 ; Note3: limite en 2D pour cette application mais on peut facilement la modifier pour accepter la 3D (enlever les limites with [pzcor ...])
-to-report plan-astar [start goal longpath?] ; start et goal sont des patchs
+to-report plan-astar [start goal longpath? for-drone?] ; start et goal sont des patchs
 
   ; Desactivation du refresh GUI (car calculs internes): Pour etre plus rapide, on dit a NetLogo qu'il peut calculer toute cette fonction sans avoir a updater le GUI (que des calculs internes), comme ca le slider de vitesse n'influencera pas la vitesse de ce code (sinon en slower ca met vraiment beaucoup de temps)
   if not debug-verbose [no-display]
-
+  if (for-drone?) [no-display]
   ; INIT
   ; Ajustement du niveau du but par rapport au start, car le plan est en 2D ici
   let start-pzcor [pzcor] of start
@@ -431,10 +435,10 @@ to-report plan-astar [start goal longpath?] ; start et goal sont des patchs
     ]
   ]
 
-  if debug [print (word "found:" found " - resign:" resign)]
+  if (debug and not for-drone?) [print (word "found:" found " - resign:" resign)]
 
   ; Visualisation de tous les noeuds explores en coloriant selon quand ca a ete explore (score as-closed)
-  if astar-visu-more [
+  if (astar-visu-more and not for-drone?) [
     let max-closed max [as-closed] of patches with [pzcor = start-pzcor] ; Récupère la valeur tdval max entre tous les patchs
     let min-closed min [as-closed] of patches with [pzcor = start-pzcor] ; Idem pour min tdval
     if (max-closed != min-closed) [ ; Si on a au moins appris quelquechose (sinon tous les patchs auront la même couleur, ce n'est pas intéressant)
@@ -467,7 +471,7 @@ to-report plan-astar [start goal longpath?] ; start et goal sont des patchs
     while [pos != start] [
 
       ; Visualisation du chemin, on ajoute un lien entre le parent et le noeud en cours
-      if astar-visu [
+      if (astar-visu  and not for-drone?) [
         create-waypoints 1
         [
           hide-turtle
@@ -530,7 +534,7 @@ to convois-think
     if empty? as-path or length as-path < (id + 1) or empty? (item id as-path) [ ; s'il n'y a pas encore de chemin du tout, ou pas de chemin pour cette voiture, on cree un plan AStar
       ; Cree le plan AStar (attention a ca que le patch start soit au niveau ou il y a les obstacles, ici pzcor = mapAlt pour les obstacles)
       let start-patch min-one-of (patches with [pzcor = mapAlt and not obstacle?]) [distance ?] ; on s'assure de choisir comme patch de depart un patch libre sans obstacle, sinon quand on split un convoi il se peut qu'il soit sur un obstacle et qu'il ne puisse jamais generer de chemin
-      let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) ([genlongpath?] of ?)
+      let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) ([genlongpath?] of ?) false
       ; S'il n'y a pas de plan et qu'on a essayé de trouver un long chemin, on attend la prochaine iteration et on reessaie mais avec un plan court
       if empty? new-path and [genlongpath?] of ? [ ask ? [ set genlongpath? false ] ]
       ; S'il n'y a pas deja une entree pour cette voiture on la cree
@@ -929,9 +933,20 @@ to setup-drones
     set conv-followed (one-of convois with [leader? and not finished? and not dead?])
     set incoming-queue []
     set fuel max-fuel
+
+    set move-up? false
+    set move-down? false
+
+
     set comportement (random 3)
+;    set comportement 2
+
+
+
+
+
     ifelse comportement = 2 [     ;Comportement "tir sur les enemies"
-        set alt basseAlt
+        set alt (basseAlt - 1)
       ]
       [
         set alt hauteAlt    ;Autres comportements
@@ -1024,13 +1039,13 @@ to atterissage-drone [drone-chois]
   ask drone-chois[
     let headingFlag 0
     ifelse (not can-land?)[     ;Si on ne peut pas se poser, on se dirige vers le patch situé devant la base
-      set headingFlag (towards patch pos-avt-decollage-x pos-avt-decollage-y zcor)
+      set headingFlag (towards-nowrap patch pos-avt-decollage-x pos-avt-decollage-y zcor)
       if (patch-here = patch pos-avt-decollage-x pos-avt-decollage-y zcor)[;Une fois arrivé sur le patch on passe can-lan? à true pour pouvoir se poser
         set can-land? true
       ]
     ]
     [
-      set headingFlag (towards patch pos-decollage-x pos-decollage-y 1);On définit une nouvelle cible pour le drone(point de départ des drones)
+      set headingFlag (towards-nowrap patch pos-decollage-x pos-decollage-y 1);On définit une nouvelle cible pour le drone(point de départ des drones)
       ifelse abs zcor > (solAlt + 0.05)[ ;Atterissage des drones
         tilt-down abs (zcor) / 10
       ]
@@ -1059,17 +1074,83 @@ to atterissage-drone [drone-chois]
 end
 
 
-;Dirige le drone vers un patch (si l'altitude le permet on va jusqu'au patch en ligne droite)
+to astar-drone
+  foreach sort-on [who] drones[
+    ifelse not [take-off?] of ? or [atterissage?] of ? ; On commence les actions uniquement lorsque les drones ont décollé et on stop les actions si on doit attérir
+    []
+    [
+      ifelse([alt] of ? >= basseAlt)[
+        let my-as-path plan-astar ([patch-here] of ?) ([goal-drone] of ?) false true
+        if not empty? my-as-path [
+          ; Deplacement par waypoints: on se deplace jusqu'au prochain patch du chemin jusqu'à l'atteindre
+          let next-patch first my-as-path
+          set next-patch [patch-at 0 0 0] of next-patch ; mise a niveau de pzcor au cas ou le chemin a ete calculé sur un autre plan
+                                                        ; Deplacement vers le prochain waypoint
+          if next-patch != ([patch-here] of ?) [ask ? [go-to-drone next-patch ]]
+          ; Si on a atteint ce patch, on le supprime de la liste, et on va donc continuer vers le prochain patch du chemin
+        ]
+      ]
+      [ask ? [go-to-drone goal-drone ] ]
+    ]
+  ]
+end
+
+
+;Dirige le drone vers un patch
 to go-to-drone [goal]
-  ifelse alt > basseAlt[ ; si on peut(on est au dessus des montagnes) on vole en ligne droite jusqu'a l'objectif
-    let headingFlag (towards-nowrap goal)
+  ifelse not take-off? or atterissage? ; On commence les actions uniquement lorsque les drones ont décollé et on stop les actions si on doit attérir
+  []
+  [
+    let headingFlag (towards-nowrap goal) ; si on peut(on est au dessus des montagnes) on vole en ligne droite jusqu'a l'objectif
     let dirCorrection subtract-headings headingFlag heading
     if dirCorrection > 5[set dirCorrection 5]
     if dirCorrection < -5[set dirCorrection -5]
     rt dirCorrection
+
+;      if alt = basseAlt[ ; si il y a un obstacle on passe au dessus de la montagne
+;        ifelse (obstacle-drone? or move-up?) [up-montagne]
+;        [
+;          if move-down?
+;          [down-montagne
+;          ]
+;        ]
+;      ]
   ]
-  []
 end
+
+;to up-montagne
+;  ifelse abs (zcor - alt + 1) > 0.05[
+;      set move-up? true
+;      tilt-up abs (alt + 1 - zcor) / 10
+;    ]
+;    [
+;      set move-up? false
+;      tilt-down pitch
+;      set move-down? true
+;    ]
+;end
+;
+;to down-montagne
+;  if zcor > alt
+;  [
+;    ifelse abs zcor > alt[ ;Atterissage des drones
+;        tilt-down abs (zcor) / 10
+;        set move-down? true
+;      ]
+;      [
+;        tilt-up (- pitch) ;une fois arrivé au sol on redresse le nez du drone
+;        set move-down? false
+;      ]
+;  ]
+;end
+;
+;to-report obstacle-drone? ; Renvoie true si on voit une montagne en face de soi
+;  let targets patches in-cone 4 35 with [ obstacle?]
+;  ifelse length (sort-on [pcolor] targets) > 0
+;  [report true]
+;  [report false]
+;end
+
 
 ;Donne l'ordre au drone de retrouner a la base
 to ravitaillement
@@ -1077,38 +1158,27 @@ to ravitaillement
 end
 
 
-;Affichage du rayon de comm
-;to display-range
-;
-;  clear-drawing
-;  foreach sort-on [who] drones[
-;    let patch-com patch 0 0 0
-;    ask ? [set patch-com patch-here]
-;
-;      create-turtles 1
-;      [
-;        set color green
-;        set size 2 * range-com
-;        set shape "circle-com"
-;        move-to patch-com
-;        stamp
-;        die
-;      ]
-;  ]
-;end
 
-
-to test
+to drone-think
   ask drones [
-;    if (conv-followed = nobody) [ stop]
+    ifelse not take-off? or atterissage? ; On commence les actions uniquement lorsque les drones ont décollé et on stop les actions si on doit attérir
+    []
+    [
+        if(comportement = 1)[ ;Suit le convoi
+          if(conv-followed = nobody or [dead?] of conv-followed)[
+            set conv-followed (one-of convois with [leader? and not finished? and not dead?])
+          ]
+          if(conv-followed != nobody)[
+            set goal-drone ([patch-here] of conv-followed)
+          ]
+        ]
+        if(comportement = 0)[;Exploration chemin en amont du convoi
+          set goal-drone (one-of patches with [objectif?])
+        ]
+      ]
+    ]
+    astar-drone
 
-    if(conv-followed = nobody or [dead?] of conv-followed)[
-      set conv-followed (one-of convois with [leader? and not finished? and not dead?])
-    ]
-    if(conv-followed != nobody)[
-      go-to-drone ([patch-here] of conv-followed)
-    ]
-  ]
 end
 
 
@@ -1140,9 +1210,9 @@ to go
   enemies-move
   move-missiles
   drones-move
-  if(test? ) [
-    test
-  ]
+;  if(follow-convoi?)[
+  drone-think
+;  ]
   tick
 end
 @#$#@#$#@
@@ -1241,7 +1311,7 @@ INPUTBOX
 163
 98
 max-nb-mountains
-2
+5
 1
 0
 Number
@@ -1611,11 +1681,11 @@ NIL
 SWITCH
 698
 89
-801
+853
 122
-test?
-test?
-1
+follow-convoi?
+follow-convoi?
+0
 1
 -1000
 
