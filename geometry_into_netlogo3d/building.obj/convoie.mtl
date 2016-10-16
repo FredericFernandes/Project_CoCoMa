@@ -1,0 +1,62 @@
+# Blender MTL File: 'None'
+# Material Count: 5
+
+newmtl US6_furgon_box
+Ns 25.490196
+Ka 0.000000 0.000000 0.000000
+Kd 0.447100 0.447100 0.447100
+Ks 0.094100 0.094100 0.094100
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd D:\Program Files\Autodesk\3ds Max 2009\scenes\Studebaker\Studebaker_Furgon\US6-furgon_box.jpg
+map_Ka D:\\Program Files\\Autodesk\\3ds Max 2009\\scenes\\Studebaker\\Studebaker_Furgon\\US6-furgon_box.jpg
+
+newmtl US6_furgon_cabin
+Ns 31.372549
+Ka 0.000000 0.000000 0.000000
+Kd 0.415700 0.415700 0.415700
+Ks 0.241600 0.241600 0.241600
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd D:\Program Files\Autodesk\3ds Max 2009\scenes\Studebaker\Studebaker_Furgon\US6-furgon_cabin.jpg
+map_Ka D:\\Program Files\\Autodesk\\3ds Max 2009\\scenes\\Studebaker\\Studebaker_Furgon\\US6-furgon_cabin.jpg
+
+newmtl US6_furgon_detail
+Ns 29.411765
+Ka 0.000000 0.000000 0.000000
+Kd 0.454900 0.454900 0.454900
+Ks 0.232400 0.232400 0.232400
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd D:\Program Files\Autodesk\3ds Max 2009\scenes\Studebaker\Studebaker_Furgon\US6-furgon_detail.jpg
+map_Ka D:\\Program Files\\Autodesk\\3ds Max 2009\\scenes\\Studebaker\\Studebaker_Furgon\\US6-furgon_detail.jpg
+
+newmtl US6_furgon_frame
+Ns 25.490196
+Ka 0.000000 0.000000 0.000000
+Kd 0.294100 0.294100 0.294100
+Ks 0.096500 0.096500 0.096500
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd D:\Program Files\Autodesk\3ds Max 2009\scenes\Studebaker\Studebaker_Furgon\US6-furgon_frame.jpg
+map_Ka D:\\Program Files\\Autodesk\\3ds Max 2009\\scenes\\Studebaker\\Studebaker_Furgon\\US6-furgon_frame.jpg
+
+newmtl US6_furgon_wheel
+Ns 17.647059
+Ka 0.000000 0.000000 0.000000
+Kd 0.427500 0.427500 0.427500
+Ks 0.093200 0.093200 0.093200
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd D:\Program Files\Autodesk\3ds Max 2009\scenes\Studebaker\Studebaker_Furgon\US6-furgon_wheel.jpg
+map_Ka D:\\Program Files\\Autodesk\\3ds Max 2009\\scenes\\Studebaker\\Studebaker_Furgon\\US6-furgon_wheel.jpg

@@ -1,23 +1,119 @@
 extensions[table goo]
-__includes ["obj_parser.nls" "voxeliser.nls" "shape3d_writer.nls" "vectormath.nls" "misc.nls"]
-
+__includes ["libs/obj_parser.nls" "libs/voxeliser.nls" "libs/shape3d_writer.nls" "libs/vectormath.nls" "libs/misc.nls"]
+breed [turtleAxes turtleAxe]
+undirected-link-breed [link-axes link-axe]
 globals [
   current-object
   current-layer
+  pathFile
 ]
+to import
+  clear-all
+  set pathFile user-file
+  if pathFile != false [
+    reset-ticks
+    output-print pathFile
+    tick
+   ]
+  create-ground
+  create-axis
+  create-ForwardAxis
+end
 
-to import-wireframe
-  let file user-file
-  if file != false [
-    import-obj file
+to create-ground
+    ; Herbe
+  ask patches with [pzcor = -1][set pcolor Brown + (random-float 2) - 1]
+
+end
+
+to create-ForwardAxis
+  create-turtleAxes 1[
+      move-to patch 0 15 -1
+      set color [255 255 255 100]
+      set shape "arrow3"
+      set size 20
+      set heading 0
+     ]
+
+   ask patch 5 25 1[  ; patch label
+      set plabel "Forward axes"
+      set plabel-color  black
+     ]
+end
+
+to create-axis
+
+     create-turtleAxes 1[ ; axe X
+      ;hide-turtle
+      move-to patch (max-pxcor - 5) 0 0
+      set color red
+      set shape "circle"
+      set size 2
+      set label "X"
+      set label-color  red
+     ]
+
+     create-turtleAxes 1[ ; axe Y
+      ;hide-turtle
+      move-to patch 0 (max-pycor - 5) 0
+       set color green
+       set shape "circle"
+       set size 2
+       set label "Y"
+       set label-color  green
+     ]
+
+     create-turtleAxes 1[ ; axe Z
+     ; hide-turtle
+      move-to patch 0 0 (max-pzcor - 5)
+       set color blue
+       set shape "circle"
+       set size 2
+       set label "Z"
+       set label-color  blue
+     ]
+
+      create-turtleAxes 1[  ; origine
+      ;hide-turtle
+      move-to patch 0 0 0
+      ;set color white
+      ;set shape "circle"
+      hide-turtle
+      create-link-axe-with one-of (turtleAxes-at (max-pxcor - 5) 0 0)[
+        ; axe X
+        set color red
+        show-link
+      ]
+      create-link-axe-with one-of (turtleAxes-at 0 (max-pycor - 5) 0)[
+        ; axe Y
+        set color green
+        show-link
+      ]
+      create-link-axe-with one-of (turtleAxes-at 0 0 (max-pzcor - 5))[
+        ; axe Z
+        set color blue
+        show-link
+      ]
+   ]
+end
+
+to render
+  ask turtles with [breed != turtleAxes ] [die ]
+  if pathFile != false [
+    no-display
+    import-obj pathFile
+    display
   ]
+
 end
 
 to show-faces [what]
   let found objects with[object-name = what]
-  ifelse not any? found [
+  ifelse not any? found
+  [
     user-message "object not found!"
-  ][
+  ]
+  [
     let file-written write-n3d one-of found false
     load-shapes-3d file-written
     let existing-turtles turtles with[shape = "custom shape"]
@@ -31,14 +127,14 @@ to show-faces [what]
     ]
     ask the-turtle [
       set shape "custom shape"
-      set color 123
+      set color white
       set heading 0
       set pitch 0
       set roll 0
       set xcor 0
       set ycor 0
       set zcor 0
-      set size 0.3
+      set size 1 ; 0.3
     ]
   ]
 end
@@ -47,60 +143,60 @@ to hide-faces
   ask turtles with [shape = "custom shape"][ht]
 end
 
-to voxelize[what]
-  let found objects with[object-name = what]
-  ifelse not any? found [
-    user-message "object not found!"
-  ][
-    voxelize-object one-of found
-  ]
-end
-
-to show-current-layer
-  no-display
-  ask patches [
-    ifelse pycor = current-layer [
-      set pcolor _color
-    ][
-      set pcolor black
-    ]
-  ]
-  display
-end
-
-to show-all-layers
-  no-display
-  ask patches [
-    set pcolor _color
-  ]
-  display
-end
-
-to show-one-up
-  no-display
-  if current-layer != max-pycor [
-    set current-layer (current-layer + 1)
-    show-current-layer
-  ]
-  display
-end
-
-to show-one-down
-  no-display
-  if current-layer != min-pycor [
-    set current-layer (current-layer - 1)
-    show-current-layer
-  ]
-  display
-end
+;to voxelize[what]
+;  let found objects with[object-name = what]
+;  ifelse not any? found [
+;    user-message "object not found!"
+;  ][
+;    voxelize-object one-of found
+;  ]
+;end
+;
+;to show-current-layer
+;  no-display
+;  ask patches [
+;    ifelse pycor = current-layer [
+;      set pcolor _color
+;    ][
+;      set pcolor black
+;    ]
+;  ]
+;  display
+;end
+;
+;to show-all-layers
+;  no-display
+;  ask patches [
+;    set pcolor _color
+;  ]
+;  display
+;end
+;
+;to show-one-up
+;  no-display
+;  if current-layer != max-pycor [
+;    set current-layer (current-layer + 1)
+;    show-current-layer
+;  ]
+;  display
+;end
+;
+;to show-one-down
+;  no-display
+;  if current-layer != min-pycor [
+;    set current-layer (current-layer - 1)
+;    show-current-layer
+;  ]
+;  display
+;end
 @#$#@#$#@
 GRAPHICS-WINDOW
 0
 0
-1020
-1041
-50
-50
+820
+841
+40
+40
 10.0
 1
 10
@@ -111,12 +207,12 @@ GRAPHICS-WINDOW
 1
 1
 1
--50
-50
--50
-50
--8
-8
+-40
+40
+-40
+40
+-30
+30
 1
 0
 1
@@ -124,12 +220,12 @@ ticks
 30.0
 
 BUTTON
-200
-41
-319
-74
-import wireframe
-import-wireframe
+148
+171
+231
+204
+Render
+render
 NIL
 1
 T
@@ -138,142 +234,29 @@ NIL
 NIL
 NIL
 NIL
-1
+0
 
 SLIDER
-319
-41
-491
-74
+187
+90
+359
+123
 scale
 scale
-0.001
-10
-1
+0.0001
+5
+0.4
 0.01
 1
 NIL
 HORIZONTAL
 
 BUTTON
-330
-130
-425
-163
-voxelize
-voxelize choose-an-object
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-MONITOR
-456
-188
-542
-233
-NIL
-current-layer
-17
-1
-11
-
-BUTTON
-542
-200
-605
-233
-show
-show-current-layer
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-604
-200
-667
-233
-all
-show-all-layers
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-542
-168
-605
-201
-+1
-show-one-up\n
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-542
-232
-605
-265
--1
-show-one-down
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-330
-162
-425
-195
-clear voxelization
-no-display\nask patches [\n  set pcolor black\n  set _color 0\n]\ndisplay
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-57
-130
-193
-163
-show faces
+159
+288
+318
+321
+exoprt ".n3d" files
 show-faces choose-an-object
 NIL
 1
@@ -285,51 +268,31 @@ NIL
 NIL
 1
 
-TEXTBOX
-15
-13
-165
-41
-Loading Geometry into NetLogo
-11
-0.0
-1
-
 CHOOSER
-193
-130
-331
-175
+163
+224
+301
+269
 choose-an-object
 choose-an-object
-"Torus.004" "/home/fred/Téléchargements/loading_geometry_into_netlogo3d/building.obj/cercle.obj"
+"Cylinder50"
 0
 
 TEXTBOX
-210
-94
-360
-112
-and then, choose:
-11
-0.0
-1
-
-TEXTBOX
-455
-131
-605
-149
-Show voxelized layers:
+21
+236
+171
+254
+4) : and then, choose:
 11
 0.0
 1
 
 BUTTON
-57
-163
-193
-196
+165
+424
+305
+457
 hide faces
 hide-faces
 NIL
@@ -343,12 +306,109 @@ NIL
 1
 
 TEXTBOX
-46
-53
-196
-81
-(choose an .obj file)
+2
+179
+152
+207
+ 3) : run render
 11
+0.0
+1
+
+TEXTBOX
+18
+291
+168
+321
+5) : export model\nfor Netlogo3D
+12
+0.0
+1
+
+BUTTON
+169
+10
+282
+43
+choose File
+import
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+TEXTBOX
+16
+23
+166
+53
+1) : (choose an \".obj\" file)
+11
+0.0
+1
+
+OUTPUT
+295
+10
+938
+53
+10
+
+INPUTBOX
+24
+90
+74
+150
+offsetX
+0
+1
+0
+Number
+
+INPUTBOX
+74
+90
+131
+150
+offsetY
+0
+1
+0
+Number
+
+INPUTBOX
+130
+90
+180
+150
+offsetZ
+-0.52
+1
+0
+Number
+
+TEXTBOX
+10
+67
+190
+97
+2) : Move, scale
+12
+0.0
+1
+
+TEXTBOX
+281
+138
+486
+168
+Use \"Render\" for each change
+12
 0.0
 1
 
@@ -403,6 +463,17 @@ arrow
 true
 0
 Polygon -7500403 true true 150 0 0 150 105 150 105 293 195 293 195 150 300 150
+
+arrow3
+true
+0
+Polygon -7500403 true true 150 -75 45 90 105 30 135 30 165 30 195 30 255 90
+Rectangle -7500403 true true 105 45 195 75
+Rectangle -7500403 true true 105 90 195 120
+Rectangle -7500403 true true 105 135 195 165
+Rectangle -7500403 true true 105 180 195 210
+Rectangle -7500403 true true 105 225 195 255
+Rectangle -7500403 true true 105 270 195 300
 
 box
 false

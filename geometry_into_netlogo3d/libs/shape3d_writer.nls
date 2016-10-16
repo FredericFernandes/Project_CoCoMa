@@ -2,7 +2,8 @@
 
 to-report write-n3d[the-object invert-normals?]
   let center center-of-bbox bbox the-object 
-  let filename (word [object-name] of the-object ".n3d")
+  let filename (word "res/" (word [object-name] of the-object ".n3d"))
+   print filename
   print (word "writing netlogo3D shape...")  
   if file-exists? filename [
     carefully [
@@ -37,10 +38,16 @@ to-report write-n3d[the-object invert-normals?]
       ;set b subtract-vectors b center
       ;set c subtract-vectors c center
       ; output
-      file-print (word "normal: " item 0 normal " " item 1 normal " " item 2 normal)
-      file-print (word item 0 a " " item 1 a " " item 2 a)
-      file-print (word item 0 b " " item 1 b " " item 2 b)
-      file-print (word item 0 c " " item 1 c " " item 2 c)
+      
+      ;print (word "scale : " scale )
+      let mysize 0.3
+      
+      ;print (word "res : " mysize )
+      
+      file-print (word "normal: " ((item 0 normal) * mysize) " " ((item 1 normal) * mysize) " " ((item 2 normal) * mysize))
+      file-print (word ((item 0 a) * mysize) " " ((item 1 a) * mysize) " "((item 2 a) * mysize))
+      file-print (word ((item 0 b) * mysize) " " ((item 1 b) * mysize) " "((item 2 b) * mysize))
+      file-print (word ((item 0 c) * mysize) " " ((item 1 c) * mysize) " " ((item 2 c) * mysize))
   ]
   file-print "stop"
   file-print "end-shape"

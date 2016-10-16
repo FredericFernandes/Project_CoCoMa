@@ -81,9 +81,13 @@ drones-own[
 ;***********************
 
 to setup
+    clear-all
     clear-turtles
-    load-shapes-3d "shapes3D/MQ27.n3d"
+    load-shapes-3d "shapes3D/Drone.n3d"
     load-shapes-3d "shapes3D/rayon-com.n3d"
+    load-shapes-3d "shapes3D/convoie.n3d"
+    load-shapes-3d "shapes3D/tank.n3d"
+
   ; The setup generates environments until one of them is acceptable (the convoi can accomplish the mission)
   print "***********************"
   print "       SETUP           "
@@ -263,73 +267,73 @@ end
 
 
 to setup-convois
-  if nb-cars > 0 [
-    ; get the size of the base to deploy the car accordingly
-    let base-min-pxcor min [pxcor] of (patches with [hangar? and pzcor = mapAlt])
-    let base-max-pxcor max [pxcor] of (patches with [hangar? and pzcor = mapAlt])
-    let base-min-pycor min [pycor] of (patches with [hangar? and pzcor = mapAlt])
-    let base-max-pycor max [pycor] of (patches with [hangar? and pzcor = mapAlt])
+  if nb-cars = 0 [stop]
 
-    ; creation des voitures du convoi et cortege
-    create-convois nb-cars
-    ask convois
+  ; get the size of the base to deploy the car accordingly
+  let base-min-pxcor min [pxcor] of (patches with [hangar? and pzcor = mapAlt])
+  let base-max-pxcor max [pxcor] of (patches with [hangar? and pzcor = mapAlt])
+  let base-min-pycor min [pycor] of (patches with [hangar? and pzcor = mapAlt])
+  let base-max-pycor max [pycor] of (patches with [hangar? and pzcor = mapAlt])
+
+  ; creation des voitures du convoi et cortege
+  create-convois nb-cars
+  ask convois
+  [
+    ; Init apparence NetLogo
+    set shape "convoie"
+    set color magenta
+    set size 1
+    ; Init des structures BDI
+    set incoming-queue [] ; Do not change
+
+    ; Init vars convois
+    set speed 0.05 * simu-speed
+    set maxdir 10 * simu-speed
+    set heading 0
+    set roll 0
+    set pitch 0
+    set finished? false
+    set leader? false
+    set to-protect? false
+    set genlongpath? false
+    set dead? false
+
+    ; Visu
+    set label who ; display the car names
+  ]
+
+  ; get the id of the first one
+  let first-car min [who] of convois
+  let last-car max [who] of convois
+
+  ; configure the leader
+  ask convoi first-car [
+    set leader? true
+    set color orange
+    move-to patch base-max-pxcor base-max-pycor 1
+  ]
+
+  ; configure the last car as the critical one
+  ask convoi last-car [
+    set to-protect? true
+    set color yellow
+  ]
+
+  ; deploying the other car
+  if nb-cars > 1 [
+    ; ask non leader cars
+    ask turtle-set sort-on [who] convois with [who > first-car]
     [
-      ; Init apparence NetLogo
-      set shape "car"
-      set color magenta
+      ; we create a link between them
+      create-convoi-link-to turtle (who - 1)
+      ;if who >= 4 and who mod 2 = 0 [ create-convoi-link-with turtle (who - 3) ]
 
-      ; Init des structures BDI
-      set incoming-queue [] ; Do not change
-
-      ; Init vars convois
-      set speed 0.05 * simu-speed
-      set maxdir 10 * simu-speed
-      set heading 0
-      set roll 0
-      set pitch 0
-      set finished? false
-      set leader? false
-      set to-protect? false
-      set genlongpath? false
-      set dead? false
-
-      ; Visu
-      set label who ; display the car names
+      ; deploying
+      ifelse (who - 1) mod 2 = 0 [ set xcor base-min-pxcor ] [ set xcor base-max-pxcor ] ; a gauche ou a droite selon le nombre (pair ou impair respectivement)
+      set ycor base-max-pycor - (floor (who / 2) / (nb-cars / 2) * (base-max-pycor - base-min-pycor)) ; d'une rangee de plus en plus basse toutes les deux voitures
+      set zcor solAlt
     ]
 
-    ; get the id of the first one
-    let first-car min [who] of convois
-    let last-car max [who] of convois
-
-    ; configure the leader
-    ask convoi first-car [
-      set leader? true
-      set color orange
-      move-to patch base-max-pxcor base-max-pycor 1
-    ]
-
-    ; configure the last car as the critical one
-    ask convoi last-car [
-      set to-protect? true
-      set color yellow
-    ]
-
-    ; deploying the other car
-    if nb-cars > 1 [
-      ; ask non leader cars
-      ask turtle-set sort-on [who] convois with [who > first-car]
-      [
-        ; we create a link between them
-        create-convoi-link-to turtle (who - 1)
-        ;if who >= 4 and who mod 2 = 0 [ create-convoi-link-with turtle (who - 3) ]
-
-        ; deploying
-        ifelse (who - 1) mod 2 = 0 [ set xcor base-min-pxcor ] [ set xcor base-max-pxcor ] ; a gauche ou a droite selon le nombre (pair ou impair respectivement)
-        set ycor base-max-pycor - (floor (who / 2) / (nb-cars / 2) * (base-max-pycor - base-min-pycor)) ; d'une rangee de plus en plus basse toutes les deux voitures
-        set zcor solAlt
-      ]
-
-    ]
   ]
 end
 
@@ -453,7 +457,9 @@ to-report plan-astar [start goal longpath?] ; start et goal sont des patchs
       if any? waypoints [
         ask waypoints [ die ]
       ]
-      create-waypoints 1 [ hide-turtle move-to [patch-at 0 0 1] of goal ]
+      create-waypoints 1 [
+        hide-turtle
+        move-to [patch-at 0 0 1 ] of goal ]
     ]
 
     ; Tant qu'on a pas reconstruit tout le chemin vers le debut, start
@@ -462,8 +468,12 @@ to-report plan-astar [start goal longpath?] ; start et goal sont des patchs
 
       ; Visualisation du chemin, on ajoute un lien entre le parent et le noeud en cours
       if astar-visu [
-        create-waypoints 1 [ hide-turtle move-to [patch-at 0 0 1] of ([as-prev-pos] of pos)
-          create-path-link-to one-of waypoints-on [patch-at 0 0 1] of pos [
+        create-waypoints 1
+        [
+          hide-turtle
+          move-to [patch-at 0 0 1 ] of ([as-prev-pos] of pos)
+          create-path-link-to one-of waypoints-on [patch-at 0 0 1 ] of pos
+          [
             set color red
             set shape "test"
             show-link
@@ -507,69 +517,70 @@ end
 ; Procedure principale de gestion des convois
 to convois-think
 
-  if nb-cars > 0 [
+  if nb-cars = 0 [stop]
 
-    let first-car min [who] of convois
+  let first-car min [who] of convois
 
-    ; Calcul du plan AStar pour chaque leader si necessaire
-    foreach sort-on [who] turtle-set convois with [leader? and not finished? and not dead?] [
-      let id ([who] of ?) - first-car
-      ; Recalcule le chemin si nécessaire (par exemple au début de la simulation ou quand le convoi se sépare)
-      ; Note: on est oblige de le faire en dehors du ask sinon on ne peut pas acceder a tous les patchs
-      if empty? as-path or length as-path < (id + 1) or empty? (item id as-path) [ ; s'il n'y a pas encore de chemin du tout, ou pas de chemin pour cette voiture, on cree un plan AStar
-        ; Cree le plan AStar (attention a ca que le patch start soit au niveau ou il y a les obstacles, ici pzcor = mapAlt pour les obstacles)
-        let start-patch min-one-of (patches with [pzcor = mapAlt and not obstacle?]) [distance ?] ; on s'assure de choisir comme patch de depart un patch libre sans obstacle, sinon quand on split un convoi il se peut qu'il soit sur un obstacle et qu'il ne puisse jamais generer de chemin
-        let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) ([genlongpath?] of ?)
-        ; S'il n'y a pas de plan et qu'on a essayé de trouver un long chemin, on attend la prochaine iteration et on reessaie mais avec un plan court
-        if empty? new-path and [genlongpath?] of ? [ ask ? [ set genlongpath? false ] ]
-        ; S'il n'y a pas deja une entree pour cette voiture on la cree
-        ifelse length as-path < (id + 1) [
-          set as-path lput new-path as-path
-        ]
-        ; Sinon on remplace l'entree pour cette voiture par le nouveau plan
-        [
-          set as-path replace-item id as-path new-path
-        ]
+  ; Calcul du plan AStar pour chaque leader si necessaire
+  foreach sort-on [who] turtle-set convois with [leader? and not finished? and not dead?]
+  [
+    let id ([who] of ?) - first-car
+    ; Recalcule le chemin si nécessaire (par exemple au début de la simulation ou quand le convoi se sépare)
+    ; Note: on est oblige de le faire en dehors du ask sinon on ne peut pas acceder a tous les patchs
+    if empty? as-path or length as-path < (id + 1) or empty? (item id as-path) [ ; s'il n'y a pas encore de chemin du tout, ou pas de chemin pour cette voiture, on cree un plan AStar
+      ; Cree le plan AStar (attention a ca que le patch start soit au niveau ou il y a les obstacles, ici pzcor = mapAlt pour les obstacles)
+      let start-patch min-one-of (patches with [pzcor = mapAlt and not obstacle?]) [distance ?] ; on s'assure de choisir comme patch de depart un patch libre sans obstacle, sinon quand on split un convoi il se peut qu'il soit sur un obstacle et qu'il ne puisse jamais generer de chemin
+      let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) ([genlongpath?] of ?)
+      ; S'il n'y a pas de plan et qu'on a essayé de trouver un long chemin, on attend la prochaine iteration et on reessaie mais avec un plan court
+      if empty? new-path and [genlongpath?] of ? [ ask ? [ set genlongpath? false ] ]
+      ; S'il n'y a pas deja une entree pour cette voiture on la cree
+      ifelse length as-path < (id + 1) [
+        set as-path lput new-path as-path
       ]
-    ]
-
-    ; Deplacement des leaders sur le chemin AStar
-    ask convois with [leader? and not finished? and not dead?] [ ; Tant qu'on n'a pas atteint le but
-      ;move-convoi-naive ; deplacement naif sans AStar
-
-      ; Recupere le plan AStar
-      let my-as-path item (who - first-car) as-path
-      if not empty? my-as-path [
-        ; Deplacement par waypoints: on se deplace jusqu'au prochain patch du chemin jusqu'à l'atteindre
-        let next-patch first my-as-path
-        let zz pzcor
-        set next-patch [patch-at 0 0 (zz - pzcor)] of next-patch ; mise a niveau de pzcor au cas ou le chemin a ete calculé sur un autre plan
-        ; Deplacement vers le prochain waypoint
-        if next-patch != patch-here [move-convoi next-patch false false]
-        ; Si on a atteint ce patch, on le supprime de la liste, et on va donc continuer vers le prochain patch du chemin
-        if patch-here = next-patch [
-          set my-as-path remove-item 0 my-as-path
-          set as-path replace-item (who - first-car) as-path my-as-path
-          if debug [ show (word "Waypoint atteint: " patch-here ", prochain: " next-patch ) ]
-        ]
-      ]
-
-      ; Critere d'arret: on est a cote de l'objectif
-      check-convoi-finished
-
-    ]
-
-    ; Deplacement des voitures-cortege: elles ne font que suivre la voiture devant eux (avec laquelle elles sont liées)
-    ask convois with [not leader? and not finished? and not dead?] [
-      ifelse any? my-out-convoi-links [
-        move-convoi ([patch-here] of one-of out-convoi-link-neighbors) true true
-      ]
-      ; S'il n'y a pas de lien devant, c'est probablement que la voiture est morte, donc on devient leader
+      ; Sinon on remplace l'entree pour cette voiture par le nouveau plan
       [
-        set leader? true
-        set genlongpath? true
-        if not to-protect? [ set color orange ]
+        set as-path replace-item id as-path new-path
       ]
+    ]
+  ]
+
+  ; Deplacement des leaders sur le chemin AStar
+  ask convois with [leader? and not finished? and not dead?] [ ; Tant qu'on n'a pas atteint le but
+    ;move-convoi-naive ; deplacement naif sans AStar
+
+    ; Recupere le plan AStar
+    let my-as-path item (who - first-car) as-path
+    if not empty? my-as-path [
+      ; Deplacement par waypoints: on se deplace jusqu'au prochain patch du chemin jusqu'à l'atteindre
+      let next-patch first my-as-path
+      let zz pzcor
+      set next-patch [patch-at 0 0 (zz - pzcor)] of next-patch ; mise a niveau de pzcor au cas ou le chemin a ete calculé sur un autre plan
+      ; Deplacement vers le prochain waypoint
+      if next-patch != patch-here [move-convoi next-patch false false]
+      ; Si on a atteint ce patch, on le supprime de la liste, et on va donc continuer vers le prochain patch du chemin
+      if patch-here = next-patch [
+        set my-as-path remove-item 0 my-as-path
+        set as-path replace-item (who - first-car) as-path my-as-path
+        if debug [ show (word "Waypoint atteint: " patch-here ", prochain: " next-patch ) ]
+      ]
+    ]
+
+    ; Critere d'arret: on est a cote de l'objectif
+    check-convoi-finished
+
+  ]
+
+  ; Deplacement des voitures-cortege: elles ne font que suivre la voiture devant eux (avec laquelle elles sont liées)
+  ask convois with [not leader? and not finished? and not dead?] [
+    ifelse any? my-out-convoi-links
+    [
+      move-convoi ([patch-here] of one-of out-convoi-link-neighbors) true true
+    ]
+    ; S'il n'y a pas de lien devant, c'est probablement que la voiture est morte, donc on devient leader
+    [
+      set leader? true
+      set genlongpath? true
+      if not to-protect? [ set color orange ]
     ]
   ]
 end
@@ -640,7 +651,7 @@ to move-convoi [goal slowdown? cortege?]
   ; Limite de vitesse pour les voitures-cortege (pour pas qu'elles ne rentrent dans la voiture leader)
   let tmp-speed speed
   if slowdown? [
-    if distance-nowrap goal < 1.1 [
+    if distance-nowrap goal < 1.1 + 1.5[
       set tmp-speed tmp-speed / 20
     ]
     if distance-nowrap goal < 0.9 [
@@ -660,8 +671,8 @@ to setup-enemies
   ; creation des enemies
   create-enemies nb-enemies [
     ; Init apparence NetLogo
-    set shape "person soldier (custom)"
-    ;set color red
+    set shape "tank"
+    set color [204 0 0]
     ; Init vars enemies
     set speed 0.25 * simu-speed / 20
     set maxdir 10 * simu-speed
@@ -692,6 +703,7 @@ to setup-enemies
     set cible nobody
     set oldVisualRange no-patches
     set newVisualRange no-patches
+    set size 1
   ]
 
 end
@@ -896,8 +908,8 @@ to setup-drones
   [
     ; Init apparence NetLogo
     set shape "drone"
-    set color gray
-    set size 0.15
+    set color [204 255 229]
+    set size 1
     ; Init vars drones
     set speed 0.5 * simu-speed
     set heading 0
@@ -912,8 +924,8 @@ to setup-drones
     set can-take-off? false
     set can-land? false
     set atterissage? false
-    set label-color black
-    set label 1 ; display the drones names
+    set label-color white
+    set label who ; display the drones names
     set conv-followed (one-of convois with [leader? and not finished? and not dead?])
     set incoming-queue []
     set fuel max-fuel
@@ -928,19 +940,24 @@ to setup-drones
       hatch-cercles 1
       [
         set color green
-        set size 0.15 * [range-com] of myself
+        set size 1 * [range-com] of myself
         set shape "rayon-com"
         move-to myself
         ;stamp
         ;die
         ;set ([myTurtle] of self) myself
         set tmp self
+        set label ""
       ]
       set myTurtle tmp
 
   ]
-  ask first (sort-on [who] drones)[
-    set can-take-off? true
+   ; get the id of the first one
+  let first-drone min [who] of drones
+
+  ; configure the leader
+  ask drone first-drone [
+     set can-take-off? true
   ]
 
 
@@ -1224,7 +1241,7 @@ INPUTBOX
 163
 98
 max-nb-mountains
-20
+2
 1
 0
 Number
@@ -1385,7 +1402,7 @@ INPUTBOX
 291
 99
 nb-enemies
-10
+3
 1
 0
 Number
@@ -1535,7 +1552,7 @@ INPUTBOX
 220
 159
 nb-drones
-5
+4
 1
 0
 Number
@@ -1598,18 +1615,7 @@ SWITCH
 122
 test?
 test?
-0
 1
--1000
-
-SWITCH
-208
-247
-348
-280
-display-range?
-display-range?
-0
 1
 -1000
 
@@ -1780,6 +1786,18 @@ circle-com
 false
 0
 Circle -7500403 false true 44 44 212
+
+convoie
+false
+0
+Polygon -7500403 true true 300 180 279 164 261 144 240 135 226 132 213 106 203 84 185 63 159 50 135 50 75 60 0 150 0 165 0 225 300 225 300 180
+Circle -16777216 true false 180 180 90
+Circle -16777216 true false 30 180 90
+Polygon -16777216 true false 162 80 132 78 134 135 209 135 194 105 189 96 180 89
+Circle -7500403 true true 47 195 58
+Circle -7500403 true true 195 195 58
+Rectangle -7500403 true true 0 60 60 150
+Rectangle -7500403 true true 60 60 75 120
 
 cow
 false
@@ -2015,6 +2033,7 @@ Rectangle -16777216 false false 135 105 165 120
 Polygon -16777216 false false 135 120 105 135 101 181 120 225 149 234 180 225 199 182 195 135 165 120
 Polygon -16777216 false false 240 90 210 60 211 246 240 240
 Polygon -16777216 false false 60 90 90 60 89 246 60 240
+Polygon -16777216 false false 89 247 116 254 183 255 211 246 211 237 89 236
 Rectangle -16777216 false false 90 60 210 90
 Rectangle -16777216 false false 143 0 158 105
 

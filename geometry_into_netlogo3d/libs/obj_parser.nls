@@ -31,33 +31,35 @@ undirected-link-breed [edges edge]
 ; imports filename as wireframe into netlogo, using the above types
 ;
 to import-obj[filename]
-  carefully [
-	reset-timer
-    start-import
-    print (word "opening " filename)
+  carefully 
+  [
+    reset-timer
+    ;start-import
+    print "Please wait ... "
     file-open filename  
-    start-object filename
+    ;start-object filename
     while[not file-at-end?][
       let line trim file-read-line
       ;print line    
       if not empty? line [
-        let tokens tokenize line " "      
-        let command item 0 tokens
+        let points tokenize line " "      
+        let command item 0 points
         if command = "o" [
-          parse-object tokens
+          parse-object points
         ]
         if command = "v" [
-          parse-vertex tokens
+          parse-vertex points
         ]
         if command = "f" [
-          parse-face tokens
+          parse-face points
         ]
       ]
     ]
     end-object
-  ][
-    print error-message 
   ]
+  [
+    print error-message 
+  ]  
   file-close
   update-object-names
   print "end reading file"
@@ -66,16 +68,17 @@ end
 
 to update-object-names 
   let object-names [object-name] of objects
+  goo:set-chooser-items "choose-an-object" []
   goo:set-chooser-items "choose-an-object" object-names
 end
 
-to start-import
-  print (word "starting new import...")
-  clear-all
-end 
+;to start-import
+;  print (word "starting new import...")
+;  clear-all
+;end 
 
 to start-object[name]
-  print (word "new object " name)
+ print (word "start object : "name)
   create-objects 1 [
     set hidden? true
     set object-name name
@@ -86,19 +89,27 @@ to start-object[name]
 end
 
 to end-object
-  print (word "ending object " [object-name] of current-object)
-  print (word "(" [length object-vertices] of current-object " vertices and " [length object-triangles] of current-object " faces )")    
+  ;print (word "ending object " [object-name] of current-object)
+  ;print (word "(" [length object-vertices] of current-object " vertices and " [length object-triangles] of current-object " faces )")    
 end
  
-to parse-object [tokens]
+to parse-object [points]
   end-object
-  start-object item 1 tokens
+  start-object item 1 points
 end
 
-to parse-vertex [tokens]
-  let x runresult item 1 tokens
-  let y runresult item 2 tokens
-  let z runresult item 3 tokens
+to parse-vertex [points]
+  let x runresult item 1 points        ; 1  ; 1
+  let y (-(runresult item 3 points))    ; 2  ; 3
+  let z runresult item 2 points          ; 3   ; 2
+  
+  ;set y (y - y * 2)   ;  y <= -y
+  
+  
+   set x ((x * scale) + offsetX)
+   set y ((y * scale) + offsetY)
+   set z ((z * scale) + offsetZ)
+    
   create-vertices 1 [
     set hidden? true
     set heading 0
@@ -111,29 +122,50 @@ to parse-vertex [tokens]
     let the-vertex self
     ask current-object [
       set object-vertices lput the-vertex object-vertices
-    ]    
-    setxyz x * scale y * scale z * scale
+    ]
+
+   
+    setxyz x y z
     set size scale
   ]
 end
 
-to parse-face [tokens]
-  let vertices-in-surface (length tokens) - 1
-  let a-index ((runresult until "/" item 1 tokens) - 1)
-  let b-index ((runresult until "/" item 2 tokens) - 1)
-  let c-index ((runresult until "/" item 3 tokens) - 1)
+to parse-face [points]
+  let vertices-in-surface (length points) - 1
+  
+  let val1 (runresult until "/" item 1 points) ; 1 ; 1
+  let val2 (runresult until "/" item 2 points) ; 2 ; 3
+  
+  ;set val2 (val2 - val2 * 2)   ;  val <= -val
+  
+  let val3 (runresult until "/" item 3 points) ; 3 ; 2
+  
+  ;set val1 ((val1 * scale))
+  ;set val2 ((val2 * scale))
+  ;set val3 ((val3 * scale))
+  
+  let a-index (val1 - 1)  
+  let b-index (val2 - 1)  
+  let c-index (val3 - 1)  ;
+    
   create-triangles 1 [
     set hidden? true
     set triangle-a [item a-index object-vertices] of current-object
     set triangle-b [item b-index object-vertices] of current-object
     set triangle-c [item c-index object-vertices] of current-object
+    
+
     connect-vertices
     ask current-object [
       set object-triangles lput myself object-triangles
     ]
   ]  
   if vertices-in-surface = 4 [
-    let d-index ((runresult until "/" item 4 tokens) - 1)    
+    let val4 (runresult until "/" item 4 points)
+  
+    ;set val4 (val4 * scale)  
+      
+    let d-index (val4 - 1)    
     create-triangles 1 [
       set hidden? true
       set triangle-a [item a-index object-vertices] of current-object
