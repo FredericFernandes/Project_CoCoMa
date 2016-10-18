@@ -21,6 +21,7 @@ globals [mapAlt solAlt basseAlt hauteAlt ; variables topologiques Z discretise: 
   is-movie-recording?
 
   range-com ; en distance patch
+  start? ;placer a true lorsque tout les drones ont décollés
   ]
 
 
@@ -42,6 +43,8 @@ convois-own[incoming-queue
   dead?
   speed maxdir ; maximal speed of a car, and max angle
   last-send-time ; communication historical time-stamp
+  followed?   ;Placer a true si un drone suit le convoi
+  advanced-followed? ;Placer à true si un drone parcourt le chemin du convoi en avance
   ]
 
 enemies-own[
@@ -74,8 +77,8 @@ drones-own[
   fuel ; essence
   conv-followed
   myTurtle;
-  move-up? ; Set to true if the drone is getting high in alt
-  move-down? ; Set to true if the drone is getting down in alt
+;  move-up? ; Set to true if the drone is getting high in alt
+;  move-down? ; Set to true if the drone is getting down in alt
   as-path-drones
   goal-drone
 ]
@@ -104,7 +107,7 @@ to setup
     setup-env
     clear-turtles ; reinit the id of the agents
     setup-convois ;
-
+    set start? false
     ifelse nb-cars <= 0 [
       set path-is-possible? true
     ]
@@ -302,6 +305,9 @@ to setup-convois
     set genlongpath? false
     set dead? false
 
+    set followed? false
+    set advanced-followed? false
+
     ; Visu
     set label who ; display the car names
   ]
@@ -353,8 +359,7 @@ end
 to-report plan-astar [start goal longpath? for-drone?] ; start et goal sont des patchs
 
   ; Desactivation du refresh GUI (car calculs internes): Pour etre plus rapide, on dit a NetLogo qu'il peut calculer toute cette fonction sans avoir a updater le GUI (que des calculs internes), comme ca le slider de vitesse n'influencera pas la vitesse de ce code (sinon en slower ca met vraiment beaucoup de temps)
-  if not debug-verbose [no-display]
-  if (for-drone?) [no-display]
+  if not debug-verbose or for-drone? [no-display]
   ; INIT
   ; Ajustement du niveau du but par rapport au start, car le plan est en 2D ici
   let start-pzcor [pzcor] of start
@@ -362,10 +367,14 @@ to-report plan-astar [start goal longpath? for-drone?] ; start et goal sont des 
 
   ; (Re)init des variables AStar sur tous les patchs
   ;let closed n-values world-height [n-values world-width [0]]
+
+
   ask patches [
     set as-closed 0 ; sert a savoir si ce patch a deja ete visite. 0 = non visite, 1 = deja visite (et on visite en premier par le chemin optimal comme Djikstra, donc si un noeud a deja ete visite, on est sur qu'il est inutile de le revisiter par un autre chemin puisqu'il sera moins optimal que le premier chemin qui a conduit a ce patch - ceci est assure car on utilise la distance euclidienne a vol d'oiseau qui est une heuristique consistante/monotone, pas juste admissible)
     set as-heuristic astar-faster * distance-nowrap goal ; si astar-faster > 1 alors on utilise Weighted AStar, ou le chemin est suboptimal avec une limite de cout au plus astar-faster fois supérieur au cout du chemin optimal. (eg: astar-faster = 2 signifie que le chemin sera au pire deux fois moins optimal au pire). Note: si astar-faster = 0 alors h = 0 pour tous les patchs et ca revient à l'algo de Dijkstra.
   ]
+
+
 
   ; Init de l'algo en utilisant le patch de depart
   let pos start
@@ -934,14 +943,16 @@ to setup-drones
     set incoming-queue []
     set fuel max-fuel
 
-    set move-up? false
-    set move-down? false
+;    set move-up? false
+;    set move-down? false
 
 
-    set comportement (random 3)
-;    set comportement 2
+;    set comportement (random 3)
+    set comportement 0
 
-
+    if(comportement = 0)[;Exploration chemin en amont du convoi
+      set as-path-drones as-path
+    ]
 
 
 
@@ -992,17 +1003,17 @@ to drones-move
           decollage-drone ?
         ]
         [
-          if (? != last sort-on [who] drones) [
+          ifelse (? != last sort-on [who] drones) [
             ask (drone [who + 1] of ?) [
               set can-take-off? true
             ]
-          ]
+          ][set start? true]
         ]
         if (atterissage?)[
           atterissage-drone ?
         ]
         fd speed / 5
-;        fd speed / 10
+        fd speed / 10
         set fuel fuel - fuel-dec
       ]
       ask myTurtle [ move-to myself ]
@@ -1063,6 +1074,7 @@ to atterissage-drone [drone-chois]
         set can-land? false
         set headingFlag 0
         set fuel max-fuel
+
       ]
     ]
     let dirCorrection subtract-headings headingFlag heading
@@ -1076,21 +1088,24 @@ end
 
 to astar-drone
   foreach sort-on [who] drones[
-    ifelse not [take-off?] of ? or [atterissage?] of ? ; On commence les actions uniquement lorsque les drones ont décollé et on stop les actions si on doit attérir
-    []
-    [
-      ifelse([alt] of ? >= basseAlt)[
-        let my-as-path plan-astar ([patch-here] of ?) ([goal-drone] of ?) false true
-        if not empty? my-as-path [
-          ; Deplacement par waypoints: on se deplace jusqu'au prochain patch du chemin jusqu'à l'atteindre
-          let next-patch first my-as-path
-          set next-patch [patch-at 0 0 0] of next-patch ; mise a niveau de pzcor au cas ou le chemin a ete calculé sur un autre plan
-                                                        ; Deplacement vers le prochain waypoint
-          if next-patch != ([patch-here] of ?) [ask ? [go-to-drone next-patch ]]
-          ; Si on a atteint ce patch, on le supprime de la liste, et on va donc continuer vers le prochain patch du chemin
+    if([comportement] of ? = 0)[
+      ifelse not [take-off?] of ? or [atterissage?] of ? ; On commence les actions uniquement lorsque les drones ont décollé et on stop les actions si on doit attérir
+      []
+      [
+        ifelse([alt] of ? >= basseAlt)[
+          let my-as-path ([as-path-drones] of ?)
+          if not empty? my-as-path [
+            ; Deplacement par waypoints: on se deplace jusqu'au prochain patch du chemin jusqu'à l'atteindre
+            let next-patch first my-as-path
+            set next-patch [patch-at 0 0 0] of next-patch ; mise a niveau de pzcor au cas ou le chemin a ete calculé sur un autre plan
+                                                          ; Deplacement vers le prochain waypoint
+            if next-patch != ([patch-here] of ?) [ask ? [go-to-drone next-patch ]]
+            ; Si on a atteint ce patch, on le supprime de la liste, et on va donc continuer vers le prochain patch du chemin
+            ask ? [set as-path-drones remove-item 0 as-path-drones]
+          ]
         ]
+        [ask ? [go-to-drone goal-drone ] ]
       ]
-      [ask ? [go-to-drone goal-drone ] ]
     ]
   ]
 end
@@ -1161,24 +1176,35 @@ end
 
 to drone-think
   ask drones [
-    ifelse not take-off? or atterissage? ; On commence les actions uniquement lorsque les drones ont décollé et on stop les actions si on doit attérir
+    ifelse not take-off? or atterissage?; On commence les actions uniquement lorsque les drones ont décollé et on stop les actions si on doit attérir
     []
     [
         if(comportement = 1)[ ;Suit le convoi
           if(conv-followed = nobody or [dead?] of conv-followed)[
-            set conv-followed (one-of convois with [leader? and not finished? and not dead?])
+            set conv-followed (one-of convois with [leader? and not finished? and not dead? and not followed?])
+
           ]
           if(conv-followed != nobody)[
-            set goal-drone ([patch-here] of conv-followed)
+            ask conv-followed [set followed? true]
+            go-to-drone ([patch-here] of conv-followed)
           ]
         ]
-        if(comportement = 0)[;Exploration chemin en amont du convoi
-          set goal-drone (one-of patches with [objectif?])
+        if(comportement = 0)[
+          if(conv-followed = nobody or [dead?] of conv-followed)[
+            set conv-followed (one-of convois with [leader? and not finished? and not dead? and not advanced-followed?])
+
+          ]
+          if(conv-followed != nobody and [not advanced-followed?] of conv-followed)[
+            ask conv-followed [set advanced-followed? true]
+            set as-path-drones item ([who] of conv-followed - min [who] of convois) as-path
+          ]
         ]
       ]
     ]
+  if active-comportement?
+  [
     astar-drone
-
+  ]
 end
 
 
@@ -1205,14 +1231,16 @@ to send-msg [agent1 agent2]
 end
 
 to go
-  convois-think
-  check-convoi
-  enemies-move
-  move-missiles
+
+  if(start?)[
+    convois-think
+    check-convoi
+    enemies-move
+    move-missiles
+  ]
   drones-move
-;  if(follow-convoi?)[
   drone-think
-;  ]
+
   tick
 end
 @#$#@#$#@
@@ -1472,7 +1500,7 @@ INPUTBOX
 291
 99
 nb-enemies
-3
+0
 1
 0
 Number
@@ -1622,7 +1650,7 @@ INPUTBOX
 220
 159
 nb-drones
-4
+1
 1
 0
 Number
@@ -1679,12 +1707,12 @@ NIL
 1
 
 SWITCH
-698
-89
-853
-122
-follow-convoi?
-follow-convoi?
+512
+86
+729
+119
+active-comportement?
+active-comportement?
 0
 1
 -1000
@@ -1712,10 +1740,10 @@ show_messages
 -1000
 
 BUTTON
-579
-87
-684
-120
+393
+84
+498
+117
 NIL
 ravitaillement\n
 NIL
@@ -1739,10 +1767,10 @@ Communication\n
 1
 
 TEXTBOX
-581
-66
-731
-84
+395
+63
+545
+81
 Drones
 11
 0.0
