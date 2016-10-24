@@ -947,9 +947,11 @@ to setup-drones
 ;    set move-down? false
 
 
-;    set comportement (random 3)
-    set comportement 0
-
+    set comportement (random 2) + 1
+    if who = min [who] of drones
+    [set comportement 0
+     set can-take-off? true
+     ]
     if(comportement = 0)[;Exploration chemin en amont du convoi
       set as-path-drones as-path
     ]
@@ -978,15 +980,6 @@ to setup-drones
       set myTurtle tmp
 
   ]
-   ; get the id of the first one
-  let first-drone min [who] of drones
-
-  ; configure the leader
-  ask drone first-drone [
-     set can-take-off? true
-  ]
-
-
 end
 
 
@@ -1097,11 +1090,15 @@ to astar-drone
           if not empty? my-as-path [
             ; Deplacement par waypoints: on se deplace jusqu'au prochain patch du chemin jusqu'à l'atteindre
             let next-patch first my-as-path
-            set next-patch [patch-at 0 0 0] of next-patch ; mise a niveau de pzcor au cas ou le chemin a ete calculé sur un autre plan
-                                                          ; Deplacement vers le prochain waypoint
-            if next-patch != ([patch-here] of ?) [ask ? [go-to-drone next-patch ]]
-            ; Si on a atteint ce patch, on le supprime de la liste, et on va donc continuer vers le prochain patch du chemin
-            ask ? [set as-path-drones remove-item 0 as-path-drones]
+            if not is-list? next-patch[
+              set next-patch [patch-at 0 0 0] of next-patch ; mise a niveau de pzcor au cas ou le chemin a ete calculé sur un autre plan
+                                                            ; Deplacement vers le prochain waypoint
+              if next-patch != ([patch-here] of ?) [ask ? [go-to-drone next-patch ]]
+              ; Si on a atteint ce patch, on le supprime de la liste, et on va donc continuer vers le prochain patch du chemin
+             if ([distance-nowrap ([patch-here] of ?)] of next-patch ) < 2 + [zcor] of ? [ask ? [set as-path-drones remove-item 0 as-path-drones]]
+
+             if length my-as-path = 1 [ask ? [set as-path-drones item ([who] of conv-followed - min [who] of convois) as-path]]
+            ]
           ]
         ]
         [ask ? [go-to-drone goal-drone ] ]
@@ -1133,38 +1130,7 @@ to go-to-drone [goal]
   ]
 end
 
-;to up-montagne
-;  ifelse abs (zcor - alt + 1) > 0.05[
-;      set move-up? true
-;      tilt-up abs (alt + 1 - zcor) / 10
-;    ]
-;    [
-;      set move-up? false
-;      tilt-down pitch
-;      set move-down? true
-;    ]
-;end
-;
-;to down-montagne
-;  if zcor > alt
-;  [
-;    ifelse abs zcor > alt[ ;Atterissage des drones
-;        tilt-down abs (zcor) / 10
-;        set move-down? true
-;      ]
-;      [
-;        tilt-up (- pitch) ;une fois arrivé au sol on redresse le nez du drone
-;        set move-down? false
-;      ]
-;  ]
-;end
-;
-;to-report obstacle-drone? ; Renvoie true si on voit une montagne en face de soi
-;  let targets patches in-cone 4 35 with [ obstacle?]
-;  ifelse length (sort-on [pcolor] targets) > 0
-;  [report true]
-;  [report false]
-;end
+
 
 
 ;Donne l'ordre au drone de retrouner a la base
@@ -1192,7 +1158,7 @@ to drone-think
         if(comportement = 0)[
           if(conv-followed = nobody or [dead?] of conv-followed)[
             set conv-followed (one-of convois with [leader? and not finished? and not dead? and not advanced-followed?])
-
+            set as-path-drones []
           ]
           if(conv-followed != nobody and [not advanced-followed?] of conv-followed)[
             ask conv-followed [set advanced-followed? true]
@@ -1213,6 +1179,16 @@ to-report can-communicate [agent1 agent2]
   let res true
   ask agent1[
     set res distancexy-nowrap ([pxcor] of [patch-here] of agent2) ([pycor] of [patch-here] of agent2) <= range-com
+    ;DEtection des montagnes, utiliser patch-is*air et patch-at?
+
+  ]
+  ifelse not res [
+    ask agent1 [ ask myTurtle[ set color red]]
+    ask agent2 [ask myTurtle[set color red]]
+    ]
+  [
+    ask agent1 [ ask myTurtle[set color green]]
+    ask agent2 [ask myTurtle[set color green]]
   ]
   report res
 end
@@ -1650,7 +1626,7 @@ INPUTBOX
 220
 159
 nb-drones
-1
+5
 1
 0
 Number
