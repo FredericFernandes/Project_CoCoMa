@@ -20,6 +20,13 @@ globals [mapAlt solAlt basseAlt hauteAlt ; variables topologiques Z discretise: 
   send-interval ; communication period
   is-movie-recording?
 
+  ;Optimisation A*
+  first-time
+  patch-used
+
+
+
+
   range-com ; en distance patch
   start? ;placer a true lorsque tout les drones ont décollés
   ]
@@ -95,6 +102,10 @@ to setup
     load-shapes-3d "shapes3D/convoie.n3d"
     load-shapes-3d "shapes3D/tank.n3d"
 
+
+    set first-time true
+    set patch-used []
+
   ; The setup generates environments until one of them is acceptable (the convoi can accomplish the mission)
   print "***********************"
   print "       SETUP           "
@@ -113,14 +124,17 @@ to setup
     ]
     ; generate a path and check is the convoi can reach its destination. If not, generate a new env
     [
-      let start-path (plan-astar ([[patch-at 0 0 (pzcor * -1)] of patch-here] of one-of convois with [leader?]) (one-of patches with [objectif?]) false false)
+      let start-path (plan-astar ([[patch-at 0 0 (pzcor * -1)] of patch-here] of one-of convois with [leader?]) (one-of patches with [objectif?]) false false true)
       set as-path replace-item 0 as-path start-path
       if not empty? start-path [ set path-is-possible? true]
     ]
   ]
+
+
   if not debug and not debug-verbose [no-display]
   setup-drones
   setup-enemies
+
   ;setup-citizens
 ;  setup-hq
   setup-precache
@@ -356,7 +370,7 @@ end
 ; Note: si l'heuristique est consistante/monotone (comme distance euclidienne/vol d'oiseau), h = 0 revient a faire Djikstra
 ; Note2: on l'utilise avec le convoi mais on peut l'utiliser avec n'importe quel agent, c'est generique.
 ; Note3: limite en 2D pour cette application mais on peut facilement la modifier pour accepter la 3D (enlever les limites with [pzcor ...])
-to-report plan-astar [start goal longpath? for-drone?] ; start et goal sont des patchs
+to-report plan-astar [start goal longpath? for-drone? first-time?] ; start et goal sont des patchs
 
   ; Desactivation du refresh GUI (car calculs internes): Pour etre plus rapide, on dit a NetLogo qu'il peut calculer toute cette fonction sans avoir a updater le GUI (que des calculs internes), comme ca le slider de vitesse n'influencera pas la vitesse de ce code (sinon en slower ca met vraiment beaucoup de temps)
   if not debug-verbose or for-drone? [no-display]
@@ -369,16 +383,26 @@ to-report plan-astar [start goal longpath? for-drone?] ; start et goal sont des 
   ;let closed n-values world-height [n-values world-width [0]]
 
 
-  ask patches [
-    set as-closed 0 ; sert a savoir si ce patch a deja ete visite. 0 = non visite, 1 = deja visite (et on visite en premier par le chemin optimal comme Djikstra, donc si un noeud a deja ete visite, on est sur qu'il est inutile de le revisiter par un autre chemin puisqu'il sera moins optimal que le premier chemin qui a conduit a ce patch - ceci est assure car on utilise la distance euclidienne a vol d'oiseau qui est une heuristique consistante/monotone, pas juste admissible)
-    set as-heuristic astar-faster * distance-nowrap goal ; si astar-faster > 1 alors on utilise Weighted AStar, ou le chemin est suboptimal avec une limite de cout au plus astar-faster fois supérieur au cout du chemin optimal. (eg: astar-faster = 2 signifie que le chemin sera au pire deux fois moins optimal au pire). Note: si astar-faster = 0 alors h = 0 pour tous les patchs et ca revient à l'algo de Dijkstra.
+  ifelse (first-time?)[
+    ask patches [
+      set as-closed 0 ; sert a savoir si ce patch a deja ete visite. 0 = non visite, 1 = deja visite (et on visite en premier par le chemin optimal comme Djikstra, donc si un noeud a deja ete visite, on est sur qu'il est inutile de le revisiter par un autre chemin puisqu'il sera moins optimal que le premier chemin qui a conduit a ce patch - ceci est assure car on utilise la distance euclidienne a vol d'oiseau qui est une heuristique consistante/monotone, pas juste admissible)
+                      ;    set as-heuristic astar-faster * distance-nowrap goal ; si astar-faster > 1 alors on utilise Weighted AStar, ou le chemin est suboptimal avec une limite de cout au plus astar-faster fois supérieur au cout du chemin optimal. (eg: astar-faster = 2 signifie que le chemin sera au pire deux fois moins optimal au pire). Note: si astar-faster = 0 alors h = 0 pour tous les patchs et ca revient à l'algo de Dijkstra.
+    ]
+    set first-time false
   ]
-
+  [foreach patch-used[ask ?[set as-closed 0]]]
+  set patch-used []
 
 
   ; Init de l'algo en utilisant le patch de depart
   let pos start
-  let h [as-heuristic] of start
+  set patch-used fput pos patch-used
+
+;  let h [as-heuristic] of start
+  let h [ astar-faster * distance-nowrap goal] of start
+
+
+
   let g 0
   let f (g + h)
 
@@ -419,6 +443,7 @@ to-report plan-astar [start goal longpath? for-drone?] ; start et goal sont des 
       ask pos [ set pcolor red ]
       ]
 
+      set patch-used fput pos patch-used
       ; Critere d'arret si reussite: on est sur le but donc on a trouve un chemin
       ifelse pos = goal [
         set found true
@@ -429,7 +454,15 @@ to-report plan-astar [start goal longpath? for-drone?] ; start et goal sont des 
         ask [neighbors6-nowrap with [pzcor = start-pzcor and as-closed = 0 and not obstacle? and not base?]] of pos [ ; On ne visite que les voisins au meme niveau (astar en 2D, mais on peut etendre ici au 3D facilement!) ET on ne l'a pas deja visite (as-closed = 0) ET il n'y a pas d'obstacle sur ce patch
           ; Calcul du score f de ce voisin
           let g2 g + as-cost
-          let h2 as-heuristic
+
+
+          ;let h2 as-heuristic
+          let h2 astar-faster * distance-nowrap goal
+
+
+
+
+
           let f2 g2 + h2
 
           ; Ajout dans la liste open des patchs a visiter
@@ -543,7 +576,7 @@ to convois-think
     if empty? as-path or length as-path < (id + 1) or empty? (item id as-path) [ ; s'il n'y a pas encore de chemin du tout, ou pas de chemin pour cette voiture, on cree un plan AStar
       ; Cree le plan AStar (attention a ca que le patch start soit au niveau ou il y a les obstacles, ici pzcor = mapAlt pour les obstacles)
       let start-patch min-one-of (patches with [pzcor = mapAlt and not obstacle?]) [distance ?] ; on s'assure de choisir comme patch de depart un patch libre sans obstacle, sinon quand on split un convoi il se peut qu'il soit sur un obstacle et qu'il ne puisse jamais generer de chemin
-      let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) ([genlongpath?] of ?) false
+      let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) ([genlongpath?] of ?) false false
       ; S'il n'y a pas de plan et qu'on a essayé de trouver un long chemin, on attend la prochaine iteration et on reessaie mais avec un plan court
       if empty? new-path and [genlongpath?] of ? [ ask ? [ set genlongpath? false ] ]
       ; S'il n'y a pas deja une entree pour cette voiture on la cree
@@ -1223,8 +1256,8 @@ end
 GRAPHICS-WINDOW
 0
 0
-520
-541
+1020
+1041
 -1
 -1
 10.0
@@ -1238,9 +1271,9 @@ GRAPHICS-WINDOW
 1
 1
 0
-50
+100
 0
-50
+100
 0
 8
 1
@@ -1476,7 +1509,7 @@ INPUTBOX
 291
 99
 nb-enemies
-5
+30
 1
 0
 Number
