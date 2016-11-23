@@ -11,6 +11,25 @@ directed-link-breed [path-links path-link]
 undirected-link-breed [dummy-links dummy-link]
 directed-link-breed [convoi-links convoi-link]
 
+;;;;;;;;;;;;;;;;
+;;;INTENTIONS;;;
+;;;;;;;;;;;;;;;;
+
+; go-to-drone
+; ravitaillement
+; set comportement
+;
+;
+;
+;
+;
+;
+;
+
+
+
+
+
 globals [mapAlt solAlt basseAlt hauteAlt ; variables topologiques Z discretise: definit le niveau ou se trouvent toutes les informations de la carte (obstacles base etc.) car en 2D, niveau au sol ou se trouvent les agents, niveau basse altitude et niveau haute altitude
   base-patches base-entry base-central ; precache: definit ou se trouvent les patchs de la base d'atterrissage, le patch d'entree sur la piste d'atterrissage, et le patch ou doivent s'arreter les drones pour se recharger. Permet d'evaluer rapidement la distance et les besoins des drones (quand ils doivent rentrer a la base)
   as-cost as-path ; variables globales pour les chemins AStar: le cout d'un pas sur un patch, et as-path est la liste des plans, un pour chaque convoi leader
@@ -24,7 +43,7 @@ globals [mapAlt solAlt basseAlt hauteAlt ; variables topologiques Z discretise: 
   first-time
   patch-used
 
-
+  pos-enemies ;Liste stockant les positions des ennemies trouvés par les drones
 
 
   range-com ; en distance patch
@@ -36,13 +55,14 @@ globals [mapAlt solAlt basseAlt hauteAlt ; variables topologiques Z discretise: 
 turtles-own [
   beliefs
   intentions
+  incoming-queue
 ]
 
 
 patches-own [obstacle? base? hangar? objectif? bridge? marker-goal? ; variables topologiques au niveau mapAlt, permet de definir les patchs praticables et ceux qui sont des obstacles
   as-closed as-heuristic as-prev-pos ; variables temporaires pour calculer les chemins AStar (effaces a chaque calcul de plan)
   ]
-convois-own[incoming-queue
+convois-own[;incoming-queue
   finished? ; Is the goal reached ?
   leader?   ; car leading the convoi convoi
   to-protect? ; Should this car be protected at all cost ?
@@ -80,7 +100,7 @@ drones-own[
   cible ; cible pour le tick en cours , == à "nobody" si pas de cible en cours
   alt ; altitude du drone
   atterissage?
-  incoming-queue ;Liste pour les message a initialiser à []
+  ;incoming-queue ;Liste pour les message a initialiser à []
   fuel ; essence
   conv-followed
   myTurtle;
@@ -103,6 +123,8 @@ to setup
     load-shapes-3d "shapes3D/tank.n3d"
 
 
+
+    print pos-enemies
     set first-time true
     set patch-used []
 
@@ -113,6 +135,8 @@ to setup
   let path-is-possible? false
   while [not path-is-possible?] [
     clear-all
+    set pos-enemies []
+    set pos-enemies fput patch 7 15 0 pos-enemies
     if not debug and not debug-verbose [no-display] ; disable gui display to speedup processing, the time slider won't influence the setup procedure
     setup-globals
     setup-env
@@ -129,6 +153,7 @@ to setup
       if not empty? start-path [ set path-is-possible? true]
     ]
   ]
+
 
 
   if not debug and not debug-verbose [no-display]
@@ -454,11 +479,22 @@ to-report plan-astar [start goal longpath? for-drone? first-time?] ; start et go
         ask [neighbors6-nowrap with [pzcor = start-pzcor and as-closed = 0 and not obstacle? and not base?]] of pos [ ; On ne visite que les voisins au meme niveau (astar en 2D, mais on peut etendre ici au 3D facilement!) ET on ne l'a pas deja visite (as-closed = 0) ET il n'y a pas d'obstacle sur ce patch
           ; Calcul du score f de ce voisin
           let g2 g + as-cost
-
-
+          let patch-courant patch pxcor pycor 0
           ;let h2 as-heuristic
           let h2 astar-faster * distance-nowrap goal
+          if is-list? pos-enemies and not empty? pos-enemies[
+            foreach pos-enemies[
+               if patch-courant = ?[
+                 print "OK"
+                set h2 (h2 + 1000)
+              ]
+            ]
+          ]
 
+
+
+
+;          if patch-here =
 
 
 
@@ -576,7 +612,13 @@ to convois-think
     if empty? as-path or length as-path < (id + 1) or empty? (item id as-path) [ ; s'il n'y a pas encore de chemin du tout, ou pas de chemin pour cette voiture, on cree un plan AStar
       ; Cree le plan AStar (attention a ca que le patch start soit au niveau ou il y a les obstacles, ici pzcor = mapAlt pour les obstacles)
       let start-patch min-one-of (patches with [pzcor = mapAlt and not obstacle?]) [distance ?] ; on s'assure de choisir comme patch de depart un patch libre sans obstacle, sinon quand on split un convoi il se peut qu'il soit sur un obstacle et qu'il ne puisse jamais generer de chemin
-      let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) ([genlongpath?] of ?) false false
+
+      ;let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) ([genlongpath?] of ?) false false
+let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) tmp-longpath false false
+
+
+
+
       ; S'il n'y a pas de plan et qu'on a essayé de trouver un long chemin, on attend la prochaine iteration et on reessaie mais avec un plan court
       if empty? new-path and [genlongpath?] of ? [ ask ? [ set genlongpath? false ] ]
       ; S'il n'y a pas deja une entree pour cette voiture on la cree
@@ -1215,14 +1257,14 @@ to-report can-communicate [agent1 agent2]
     ;DEtection des montagnes, utiliser patch-is*air et patch-at?
 
   ]
-  ifelse not res [
-    ask agent1 [ ask myTurtle[ set color red]]
-    ask agent2 [ask myTurtle[set color red]]
-    ]
-  [
-    ask agent1 [ ask myTurtle[set color green]]
-    ask agent2 [ask myTurtle[set color green]]
-  ]
+;  ifelse not res [
+;    ask agent1 [ ask myTurtle[ set color red]]
+;    ask agent2 [ask myTurtle[set color red]]
+;    ]
+;  [
+;    ask agent1 [ ask myTurtle[set color green]]
+;    ask agent2 [ask myTurtle[set color green]]
+;  ]
   report res
 end
 
@@ -1237,7 +1279,47 @@ to send-msg [agent1 agent2]
     ]
   ]
 
+
 end
+
+
+to send-pos-enemies [agent1 agent2 id-enemie position-enemie tick-cour]
+  ifelse can-communicate agent1 agent2[
+    ask agent1[
+      let somemsg create-message "inform"
+      set somemsg add-receiver agent2 somemsg
+      let msg-list []
+      set msg-list fput id-enemie msg-list
+      set msg-list fput position-enemie msg-list
+      set msg-list fput tick-cour msg-list
+      set somemsg add-content msg-list somemsg
+;      set somemsg add-content id-enemie somemsg
+;      set somemsg add-content position-enemie somemsg
+;      set somemsg add-content tick-cour somemsg
+      send somemsg
+    ]
+  ]
+  [print "wtf"]
+end
+
+
+
+to warn-leader[drone-lead]
+  ifelse ([conv-followed] of drone-lead) != nobody and not empty? [incoming-queue] of drone-lead[
+    if can-communicate drone-lead [conv-followed] of drone-lead[
+      ask drone-lead[
+        let msg create-message "inform"
+        set msg add-receiver conv-followed msg
+        set msg add-content item (position "content:" (first [incoming-queue] of drone-lead) + 1) (first [incoming-queue] of drone-lead) msg
+        send msg
+        remove-msg
+      ]
+    ]
+  ]
+  [print "wtf"]
+
+end
+
 
 to go
 
@@ -1256,8 +1338,8 @@ end
 GRAPHICS-WINDOW
 0
 0
-1020
-1041
+770
+791
 -1
 -1
 10.0
@@ -1271,9 +1353,9 @@ GRAPHICS-WINDOW
 1
 1
 0
-100
+75
 0
-100
+75
 0
 8
 1
@@ -1509,7 +1591,7 @@ INPUTBOX
 291
 99
 nb-enemies
-30
+10
 1
 0
 Number
@@ -1784,6 +1866,17 @@ Drones
 11
 0.0
 1
+
+SWITCH
+890
+113
+1044
+146
+tmp-longpath
+tmp-longpath
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
