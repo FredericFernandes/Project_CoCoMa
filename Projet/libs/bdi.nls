@@ -32,6 +32,10 @@ to-report belief-type [bel]
 end
 
 ;; reports the coontent of belief belief 
+to-report getContent-belief [b-type]
+  report item 1 read-first-belief-of-type b-type
+end
+;; reports the coontent of belief belief 
 to-report belief-content [bel]
   report item 1 bel
 end

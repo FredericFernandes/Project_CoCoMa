@@ -1,0 +1,35 @@
+to create-all-intention-drone
+  set intentions []
+  add-intention "random-fly" "evalue-random-fly" ; l'intention pour un drone de vouloir voller de façon aléatoire.
+  add-intention "atterissage-drone" "evalue-atterissage-drone" ; l'intention de renter à la base pour faire le plein.
+end
+
+to process-bdi-drone
+  foreach sort-on [who] drones[
+    ask ? 
+    [
+      process-bdi
+    ]
+  ]
+end
+
+to process-bdi
+  ;updateBelief
+  let bestIntention evalue-all-intention
+  ;print word "bestIntention " intention-name bestIntention 
+  run intention-name bestIntention
+end
+
+to-report evalue-all-intention
+let listEval []
+;print word "intentions " intentions
+foreach intentions [
+ let result runresult  intention-done ? ; pour chaque intention on execute ça fonction d'evaluation.
+ ;print (word intention-done ? " result " result)
+ set listEval lput result listEval
+]
+let positionOfEvalMax position (max listEval) listEval  ; on récupére l'indice de l'evaluation max
+let bestIntention item positionOfEvalMax intentions
+report bestIntention
+end
+

@@ -1,0 +1,49 @@
+globals [
+  globalScaleMin globalScaleMax
+]
+
+to init-global-scale  ; échelle de base, celle utilisée pour comparer toutes les notes
+  ; de chaque intention.
+  set globalScaleMin 0  
+  set globalScaleMax 10
+end
+
+to-report create-scale [ scaleMin scaleMax realValue ]
+  report (list scaleMin scaleMax realValue 0)
+end
+
+to-report create-and-normalize-scale [ scaleMin scaleMax realValue ]
+  let scale create-scale scaleMin scaleMax realValue
+  set scale normalizeScale scale   ; on normalise le coefficient 
+  report scale
+end
+
+to-report getMin [scale]
+  report item 0 scale 
+end
+
+to-report getMax [scale]
+  report item 1 scale 
+end
+
+to-report getRealValue [scale]
+  report item 2 scale 
+end
+
+to-report getNormalizeValue [scale]
+  report item 3 scale 
+end
+
+to-report setNormalizeValue [scale newNormalizeVal ]
+  report (replace-item 3 scale newNormalizeVal)
+end
+
+to-report normalizeScale [scale]
+  let realVal getRealValue scale
+  let valMin getMin scale
+  let valMax getMax scale
+  let normalizeVal (realVal * (globalScaleMax + globalScaleMin )/(valMax + valMin))
+  set scale setNormalizeValue scale normalizeVal
+  report scale
+end
+
