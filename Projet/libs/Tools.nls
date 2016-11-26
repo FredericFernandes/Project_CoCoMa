@@ -1,0 +1,41 @@
+
+; Return the neighbours without the world wrap
+to-report neighbors-nowrap
+; reports neighbors-nowrap-n or the indicated size
+report neighbors with
+[ abs (pxcor - [pxcor] of myself) <= 1
+  and abs (pycor - [pycor] of myself) <= 1
+  and pzcor = [pzcor] of myself
+  and goodDirection (patch pxcor pycor pzcor) myself
+]
+end
+
+
+;; Retourne vrai si la direction "myPatch" ne fait pas aller trop pres du bord de map
+to-report goodDirection [myPatch target]
+  let posTarget patch 0 0 0 
+  let ok false
+  let dist 0
+  ask target 
+  [ 
+    set posTarget patch-here
+    let headingFlag (towards-nowrap myPatch)
+    let newPatch patch-at-heading-and-distance headingFlag 10
+    if newPatch != nobody 
+    [
+      let x 0
+      let y 0
+      let z 0
+      ask newPatch [set x pxcor set y pycor set z pzcor ]
+     set ok abs (pxcor - [pxcor] of newPatch) <= 10 and abs (pycor - [pycor] of newPatch) <= 10   
+    ]
+  ]
+  report ok
+end
+
+to-report have-fuel [patchTest myDrone]
+  let ok false
+  
+  report ok
+end
+

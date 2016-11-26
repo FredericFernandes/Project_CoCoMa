@@ -1,0 +1,87 @@
+; list of all intentions
+
+; intention qui est éxecutée sur un drone
+to random-fly
+   no-display
+   let patchs neighbors-nowrap
+   ;print word "patchs" patchs
+   let patch-goal one-of patchs
+;       ask patch-goal [ set pcolor red ]
+;       ask a [set pcolor [255 255 255 0]]
+;       set a patch-goal
+   go-to-drone patch-goal
+  display
+end
+
+;Fonction d'atterissage des drones. On se dirige d'abord vers un patch intermédiaire puis on abaisse l'orientation par rapport au sol du drone
+to atterissage-drone
+  ;print "atterissage-drone"
+  let headingFlag 0
+  ifelse (not can-land?)[     ;Si on ne peut pas se poser, on se dirige vers le patch situé devant la base
+    set headingFlag (towards-nowrap patch pos-avt-decollage-x pos-avt-decollage-y zcor)
+    if (patch-here = patch pos-avt-decollage-x pos-avt-decollage-y zcor)[;Une fois arrivé sur le patch on passe can-lan? à true pour pouvoir se poser
+      set can-land? true
+    ]
+  ]
+  [
+    set headingFlag (towards-nowrap patch pos-decollage-x pos-decollage-y 1);On définit une nouvelle cible pour le drone(point de départ des drones)
+    ifelse abs zcor > (solAlt + 0.05)[ ;Atterissage des drones
+      tilt-down abs (zcor) / 10
+    ]
+    [
+      tilt-up (- pitch) ;une fois arrivé au sol on redresse le nez du drone
+    ]
+    if (round pitch = 0 and zcor < 2 and patch-here = patch pos-decollage-x pos-decollage-y 1) [  ;Une fois qu'on a touché le sol on place le drone dans sa poisiton initial de décollage
+      set take-off? false
+      set can-take-off? true
+      set atterissage? false
+      move-to patch pos-decollage-x pos-decollage-y 1
+      set heading 0
+      set roll 0
+      set pitch 0
+      set can-land? false
+      set headingFlag 0
+      set fuel max-fuel
+
+    ]
+  ]
+  let dirCorrection subtract-headings headingFlag heading
+  if dirCorrection > 10[set dirCorrection 10]
+  if dirCorrection < -10[set dirCorrection -10]
+  rt dirCorrection
+end
+
+
+; Les fonctions d'evaluations 
+; plus la valeur est élévée plus il y a de chance que l'intention soit choisit   
+
+; evaluation de l'intention de voler random
+to-report evalue-random-fly
+  ; pour cette evalution nous allons retourner un coef de 7 sur une echelle de 0 à 10.
+  let valMin 0
+  let valMax 10
+  
+  let scale create-and-normalize-scale valMin valMax 7 
+  report getNormalizeValue scale
+end
+
+; evaluation de l'intention de vouloir atterir pour faire le plein.
+to-report evalue-atterissage-drone
+  let valMin 0
+  let valMax max-fuel
+  ;let value (max-fuel - fuel)
+  let value 0
+  let patchs neighbors-nowrap ; on liste les cases voisines du drone
+  let res true
+  ;ask patchs [ ; on test si pour chaque voisin on a assez de carburant pour renter à la base si on y été dessus
+  ;  set res (res and (have-fuel self myself))
+  ;]
+  ifelse not res [  ; si au moins pour un voisin on a pas assez de carburant
+    set value valMax  ; on retourne la valeur max pour que cette intention soit choisie
+  ][
+  ;print word "fuel " fuel
+     set value (max-fuel - fuel) 
+  ]
+  let scale create-and-normalize-scale valMin valMax value 
+  report getNormalizeValue scale
+end
