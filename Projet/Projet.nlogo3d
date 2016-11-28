@@ -10,6 +10,8 @@ breed [HQs HQ]
 directed-link-breed [path-links path-link]
 undirected-link-breed [dummy-links dummy-link]
 directed-link-breed [convoi-links convoi-link]
+directed-link-breed [red-links red-link]
+undirected-link-breed [blue-links blue-link]
 
 ;;;;;;;;;;;;;;;;
 ;;;INTENTIONS;;;
@@ -110,6 +112,7 @@ drones-own[
 ;  move-down? ; Set to true if the drone is getting down in alt
   as-path-drones
   goal-drone
+  cible-enemies
 ]
 
 ;***********************
@@ -843,6 +846,11 @@ to check-convoi
        set color 0
        ask my-links [die]
       ]
+      ifelse(all? drones [link-with self = nobody])[
+       set followed? false
+      ]
+      [set followed? true]
+
     ]
   ]
 
@@ -1026,11 +1034,10 @@ to setup-drones
     set atterissage? false
     set label-color white
     set label who ; display the drones names
-    set conv-followed (one-of convois with [leader? and not finished? and not dead?])
     set incoming-queue []
     set fuel max-fuel
-
-    set comportement (random 2) + 1  ; random de 1 à 2
+    set conv-followed nobody
+  ;  set comportement (random 2) + 1  ; random de 1 à 2
     if who = min [who] of drones[
       set comportement 0
       set can-take-off? true
@@ -1284,24 +1291,6 @@ to send-msg [agent1 agent2]
 end
 
 
-to send-pos-enemies [agent1 agent2 id-enemie position-enemie tick-cour]
-  ifelse can-communicate agent1 agent2[
-    ask agent1[
-      let somemsg create-message "inform"
-      set somemsg add-receiver agent2 somemsg
-      let msg-list []
-      set msg-list fput id-enemie msg-list
-      set msg-list fput position-enemie msg-list
-      set msg-list fput tick-cour msg-list
-      set somemsg add-content msg-list somemsg
-;      set somemsg add-content id-enemie somemsg
-;      set somemsg add-content position-enemie somemsg
-;      set somemsg add-content tick-cour somemsg
-      send somemsg
-    ]
-  ]
-  [print "wtf"]
-end
 
 
 
@@ -1333,6 +1322,8 @@ to go
   move-drones
   ;drone-think
  process-bdi-drone
+
+
 
 
   tick
@@ -1489,7 +1480,7 @@ SWITCH
 209
 astar-longpath
 astar-longpath
-1
+0
 1
 -1000
 
@@ -1744,7 +1735,7 @@ INPUTBOX
 220
 159
 nb-drones
-10
+3
 1
 0
 Number
@@ -1807,7 +1798,7 @@ SWITCH
 119
 active-comportement?
 active-comportement?
-0
+1
 1
 -1000
 

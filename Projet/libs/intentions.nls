@@ -9,12 +9,22 @@ to random-fly
 ;       ask patch-goal [ set pcolor red ]
 ;       ask a [set pcolor [255 255 255 0]]
 ;       set a patch-goal
+
+
+    ; Détéction des ennemies
+    let targets enemies in-radius range-com with [not dead?]
+    if any? other targets
+    [ ; si il y a un convoi dans notre chant de vision
+      set cible-enemies one-of targets ; mise à jours de la cible
+    ]    
    go-to-drone patch-goal
   display
 end
 
 ;Fonction d'atterissage des drones. On se dirige d'abord vers un patch intermédiaire puis on abaisse l'orientation par rapport au sol du drone
 to atterissage-drone
+  ask my-links [die]
+  set conv-followed nobody
   ;print "atterissage-drone"
   let headingFlag 0
   ifelse (not can-land?)[     ;Si on ne peut pas se poser, on se dirige vers le patch situé devant la base
@@ -52,6 +62,51 @@ to atterissage-drone
 end
 
 
+to follow-convoi
+  if(conv-followed = nobody or [dead?] of conv-followed or [finished?] of conv-followed)[
+    set conv-followed (one-of convois with [leader? and not finished? and not dead? and not followed?])
+  ]
+  if(conv-followed != nobody)[
+    ask conv-followed [set followed? true]
+    go-to-drone ([patch-here] of conv-followed)
+    if(link-with conv-followed = nobody)[
+      create-red-link-to conv-followed
+    ]
+  ]
+
+;  if(conv-followed = nobody or [dead?] of conv-followed or [finished?] of conv-followed)[
+;    set conv-followed (one-of convois with [leader? and not finished? and not dead? and not followed?])
+;  ]
+;  if(conv-followed != nobody)[
+;    ask conv-followed [set followed? true]
+;    go-to-drone ([patch-here] of conv-followed)
+;  ]
+end
+
+
+
+;Fonction d'avertissement entre drones (si un drone explorateur rencontre un ennemi, il doit aller prévenir les drones leaders)
+to send-pos-enemies [agent1 agent2 id-enemie position-enemie tick-cour]
+  ifelse can-communicate agent1 agent2[
+    ask agent1[
+      let somemsg create-message "inform"
+      set somemsg add-receiver agent2 somemsg
+      let msg-list []
+      set msg-list fput id-enemie msg-list
+      set msg-list fput position-enemie msg-list
+      set msg-list fput tick-cour msg-list
+      set somemsg add-content msg-list somemsg
+      send somemsg
+    ]
+  ]
+  [ask agent1 [go-to-drone [patch-here] of agent2]]
+end
+
+
+
+
+
+
 ; Les fonctions d'evaluations 
 ; plus la valeur est élévée plus il y a de chance que l'intention soit choisit   
 
@@ -85,3 +140,29 @@ to-report evalue-atterissage-drone
   let scale create-and-normalize-scale valMin valMax value 
   report getNormalizeValue scale
 end
+
+
+to-report evalue-follow-convoi
+  let valMin 0
+  let valMax 10
+  let value 0
+  ifelse((one-of convois with [leader? and not finished? and not dead? and not followed?] != nobody) or conv-followed != nobody)[
+    set value 7.1
+  ]
+;  ifelse((one-of convois with [leader? and not finished? and not dead? and not followed?] != nobody) or conv-followed != nobody)[
+;    set value 7.1
+;  ]
+  [set value 0]
+  
+  let scale create-and-normalize-scale valMin valMax value 
+  report getNormalizeValue scale
+  
+end
+
+
+
+
+
+
+
+
