@@ -17,14 +17,15 @@ to random-fly
     [ ; si il y a un convoi dans notre chant de vision
       set cible-enemies one-of targets ; mise à jours de la cible
     ]    
-   go-to-drone patch-goal
-  display
+    go-to-drone patch-goal
+    display
 end
 
 ;Fonction d'atterissage des drones. On se dirige d'abord vers un patch intermédiaire puis on abaisse l'orientation par rapport au sol du drone
 to atterissage-drone
   ask my-links [die]
   set conv-followed nobody
+  set conv-advanced-followed nobody
   ;print "atterissage-drone"
   let headingFlag 0
   ifelse (not can-land?)[     ;Si on ne peut pas se poser, on se dirige vers le patch situé devant la base
@@ -85,6 +86,32 @@ end
 
 
 
+to explore-path-convoi
+   if(conv-advanced-followed = nobody or [dead?] of conv-advanced-followed  or [finished?] of conv-advanced-followed)[
+     set conv-advanced-followed (one-of convois with [leader? and not finished? and not dead? and not advanced-followed?])
+     set as-path-drones []
+   ]
+   
+;   if(conv-advanced-followed != nobody and [not advanced-followed?] of conv-advanced-followed and empty? as-path-drones)[
+       
+   
+   
+   
+   if(conv-advanced-followed != nobody)[
+     ask conv-advanced-followed [set advanced-followed? true]
+     ;print [path-convoi] of conv-advanced-followed
+     if not empty? [path-convoi] of conv-advanced-followed and empty? as-path-drones[
+       set as-path-drones item ([who] of conv-advanced-followed - min [who] of convois) [path-convoi] of conv-advanced-followed
+     ]
+     ;       print as-path-drones
+     if(link-with conv-advanced-followed = nobody)[
+       create-blue-link-to conv-advanced-followed
+     ]
+     astar-drone
+   ]
+end
+
+
 ;Fonction d'avertissement entre drones (si un drone explorateur rencontre un ennemi, il doit aller prévenir les drones leaders)
 to send-pos-enemies [agent1 agent2 id-enemie position-enemie tick-cour]
   ifelse can-communicate agent1 agent2[
@@ -101,10 +128,6 @@ to send-pos-enemies [agent1 agent2 id-enemie position-enemie tick-cour]
   ]
   [ask agent1 [go-to-drone [patch-here] of agent2]]
 end
-
-
-
-
 
 
 ; Les fonctions d'evaluations 
@@ -147,16 +170,32 @@ to-report evalue-follow-convoi
   let valMax 10
   let value 0
   ifelse((one-of convois with [leader? and not finished? and not dead? and not followed?] != nobody) or conv-followed != nobody)[
-    set value 7.1
+    set value 7.2
   ]
 ;  ifelse((one-of convois with [leader? and not finished? and not dead? and not followed?] != nobody) or conv-followed != nobody)[
 ;    set value 7.1
 ;  ]
-  [set value 0]
-  
+  [
+    set value 0
+  ]
   let scale create-and-normalize-scale valMin valMax value 
   report getNormalizeValue scale
   
+end
+
+
+to-report evalue-explore-path-convoi
+  let valMin 0
+  let valMax 10
+  let value 0
+  ifelse((one-of convois with [leader? and not finished? and not dead? and not advanced-followed?] != nobody) or conv-advanced-followed != nobody)[
+    set value 7.1
+  ]
+  [
+    set value 0
+  ]
+  let scale create-and-normalize-scale valMin valMax value 
+  report getNormalizeValue scale
 end
 
 

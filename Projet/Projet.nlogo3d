@@ -11,7 +11,7 @@ directed-link-breed [path-links path-link]
 undirected-link-breed [dummy-links dummy-link]
 directed-link-breed [convoi-links convoi-link]
 directed-link-breed [red-links red-link]
-undirected-link-breed [blue-links blue-link]
+directed-link-breed [blue-links blue-link]
 
 ;;;;;;;;;;;;;;;;
 ;;;INTENTIONS;;;
@@ -76,6 +76,7 @@ convois-own[;incoming-queue
   last-send-time ; communication historical time-stamp
   followed?   ;Placé à true si un drone suit le convois
   advanced-followed? ;Placé à true si un drone parcours le chemin du convoi en avance
+  path-convoi ; Stockage du chemin du convoi
   ]
 
 enemies-own[
@@ -107,6 +108,7 @@ drones-own[
   ;incoming-queue ;Liste pour les message a initialiser à []
   fuel ; essence
   conv-followed
+  conv-advanced-followed
   myTurtle;
 ;  move-up? ; Set to true if the drone is getting high in alt
 ;  move-down? ; Set to true if the drone is getting down in alt
@@ -357,7 +359,7 @@ to setup-convois
 
     set followed? false
     set advanced-followed? false
-
+    set path-convoi []
     ; Visu
     set label who ; display the car names
   ]
@@ -627,7 +629,7 @@ to convois-think
       let start-patch min-one-of (patches with [pzcor = mapAlt and not obstacle?]) [distance ?] ; on s'assure de choisir comme patch de depart un patch libre sans obstacle, sinon quand on split un convoi il se peut qu'il soit sur un obstacle et qu'il ne puisse jamais generer de chemin
 
       ;let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) ([genlongpath?] of ?) false false
-let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) tmp-longpath false false
+      let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) tmp-longpath false false
 
 
 
@@ -666,6 +668,8 @@ let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of pat
       ]
     ]
 
+    set path-convoi as-path
+;    print as-path
     ; Critere d'arret: on est a cote de l'objectif
     check-convoi-finished
 
@@ -846,11 +850,19 @@ to check-convoi
        set color 0
        ask my-links [die]
       ]
-      ifelse(all? drones [link-with self = nobody])[
+      ifelse all? drones [out-red-link-neighbor? ? = false] [
        set followed? false
       ]
-      [set followed? true]
+      [
+        set followed? true
+      ]
 
+      ifelse all? drones [out-blue-link-neighbor? ? = false] [
+       set advanced-followed? false
+      ]
+      [
+        set advanced-followed? true
+      ]
     ]
   ]
 
@@ -1037,6 +1049,7 @@ to setup-drones
     set incoming-queue []
     set fuel max-fuel
     set conv-followed nobody
+    set conv-advanced-followed nobody
   ;  set comportement (random 2) + 1  ; random de 1 à 2
     if who = min [who] of drones[
       set comportement 0
@@ -1163,33 +1176,20 @@ end
 
 
 to astar-drone
-  foreach sort-on [who] drones[
-    if([comportement] of ? = 0)
-    [
-      ifelse not [take-off?] of ? or [atterissage?] of ? ; On commence les actions uniquement lorsque les drones ont décollé et on stop les actions si on doit attérir
-      []
-      [
-        ifelse([alt] of ? >= basseAlt)
-        [
-          let my-as-path ([as-path-drones] of ?)
-          if not empty? my-as-path [
-            ; Deplacement par waypoints: on se deplace jusqu'au prochain patch du chemin jusqu'à l'atteindre
-            let next-patch first my-as-path
-            if not is-list? next-patch[
-              set next-patch [patch-at 0 0 0] of next-patch ; mise a niveau de pzcor au cas ou le chemin a ete calculé sur un autre plan
-                                                            ; Deplacement vers le prochain waypoint
-              if next-patch != ([patch-here] of ?) [ask ? [go-to-drone next-patch ]]
-              ; Si on a atteint ce patch, on le supprime de la liste, et on va donc continuer vers le prochain patch du chemin
-             if ([distance-nowrap ([patch-here] of ?)] of next-patch ) < 2 + [zcor] of ? [ask ? [set as-path-drones remove-item 0 as-path-drones]]
+    if as-path-drones != 0 and not empty? as-path-drones [
+      ; Deplacement par waypoints: on se deplace jusqu'au prochain patch du chemin jusqu'à l'atteindre
+      let next-patch first as-path-drones
+;      if not is-list? next-patch[
+        set next-patch [patch-at 0 0 0] of next-patch ; mise a niveau de pzcor au cas ou le chemin a ete calculé sur un autre plan
+                                                      ; Deplacement vers le prochain waypoint
+        ;print next-patch
+        if next-patch != patch-here [go-to-drone next-patch ]
+        ; Si on a atteint ce patch, on le supprime de la liste, et on va donc continuer vers le prochain patch du chemin
+        if distance-nowrap next-patch  < (2 + zcor) [set as-path-drones remove-item 0 as-path-drones]
 
-             if length my-as-path = 1 [ask ? [set as-path-drones item ([who] of conv-followed - min [who] of convois) as-path]]
-            ]
-          ]
-        ]
-        [ask ? [go-to-drone goal-drone ] ]
-      ]
+       ; if length as-path-drones = 1 [set as-path-drones item ([who] of conv-advanced-followed - min [who] of convois) as-path]
+;      ]
     ]
-  ]
 end
 
 
