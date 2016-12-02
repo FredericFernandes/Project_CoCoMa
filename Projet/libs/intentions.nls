@@ -113,9 +113,9 @@ end
 
 
 ;Fonction d'avertissement entre drones (si un drone explorateur rencontre un ennemi, il doit aller prévenir les drones leaders)
-to send-pos-enemies [agent1 agent2 id-enemie position-enemie tick-cour]
-  ifelse can-communicate agent1 agent2[
-    ask agent1[
+to send-pos-enemies [agent2 id-enemie position-enemie tick-cour]
+  ifelse can-communicate self agent2[
+    ask self[
       let somemsg create-message "inform"
       set somemsg add-receiver agent2 somemsg
       let msg-list []
@@ -126,7 +126,7 @@ to send-pos-enemies [agent1 agent2 id-enemie position-enemie tick-cour]
       send somemsg
     ]
   ]
-  [ask agent1 [go-to-drone [patch-here] of agent2]]
+  [ask self [go-to-drone [patch-here] of agent2]]
 end
 
 
@@ -170,7 +170,7 @@ to-report evalue-follow-convoi
   let valMax 10
   let value 0
   ifelse((one-of convois with [leader? and not finished? and not dead? and not followed?] != nobody) or conv-followed != nobody)[
-    set value 7.2
+    set value 7.3
   ]
 ;  ifelse((one-of convois with [leader? and not finished? and not dead? and not followed?] != nobody) or conv-followed != nobody)[
 ;    set value 7.1
@@ -182,7 +182,6 @@ to-report evalue-follow-convoi
   report getNormalizeValue scale
   
 end
-
 
 to-report evalue-explore-path-convoi
   let valMin 0
@@ -198,7 +197,24 @@ to-report evalue-explore-path-convoi
   report getNormalizeValue scale
 end
 
-
+to-report evalue-send-pos-enemies
+  let valMin 0
+  let valMax 10
+  let value 0
+  ifelse(not empty? cible-enemies)[
+    set value 7.2
+  ]
+  [
+    set value 0
+  ]
+  let scale create-and-normalize-scale valMin valMax value 
+  report getNormalizeValue scale
+  
+  
+end
+  
+  
+  
 
 
 

@@ -45,8 +45,6 @@ globals [mapAlt solAlt basseAlt hauteAlt ; variables topologiques Z discretise: 
   first-time
   patch-used
   pos-enemies ;Liste stockant les positions des ennemies trouvés par les drones
-azeaze
-
   range-com ; en distance patch
   start? ;placer a true lorsque tout les drones ont décollés
 
