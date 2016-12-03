@@ -14,9 +14,22 @@ to random-fly
     ; Détéction des ennemies
     let targets enemies in-radius range-com with [not dead?]
     if any? other targets
-    [ ; si il y a un convoi dans notre chant de vision
-      set cible-enemies one-of targets ; mise à jours de la cible
-    ]    
+    [ ; si il y a un enemie dans notre champs de vision
+      foreach as-path [
+        foreach ?[
+          let heading-to-path towards ?
+          let val abs subtract-headings [heading] of one-of targets heading-to-path
+          ;print val
+          
+          if val < 3 and all? [neighbors] of ? [not objectif?] and [not objectif?] of ? [
+            
+           ; set cible-enemies one-of targets ; mise à jours de la cible
+            set cible-enemies ?
+          ]
+        ]
+      ]
+    ]
+
     go-to-drone patch-goal
     display
 end
@@ -71,7 +84,12 @@ to follow-convoi
     ask conv-followed [set followed? true]
     go-to-drone ([patch-here] of conv-followed)
     if(link-with conv-followed = nobody)[
-      create-red-link-to conv-followed
+      create-red-link-to conv-followed[
+         hide-link
+         ]
+    ]
+    if(not empty? incoming-queue)[
+      warn-leader self
     ]
   ]
 
@@ -105,7 +123,9 @@ to explore-path-convoi
      ]
      ;       print as-path-drones
      if(link-with conv-advanced-followed = nobody)[
-       create-blue-link-to conv-advanced-followed
+       create-blue-link-to conv-advanced-followed[
+         hide-link
+         ]
      ]
      astar-drone
    ]
@@ -113,21 +133,51 @@ end
 
 
 ;Fonction d'avertissement entre drones (si un drone explorateur rencontre un ennemi, il doit aller prévenir les drones leaders)
-to send-pos-enemies [agent2 id-enemie position-enemie tick-cour]
-  ifelse can-communicate self agent2[
-    ask self[
-      let somemsg create-message "inform"
-      set somemsg add-receiver agent2 somemsg
-      let msg-list []
-      set msg-list fput id-enemie msg-list
-      set msg-list fput position-enemie msg-list
-      set msg-list fput tick-cour msg-list
-      set somemsg add-content msg-list somemsg
-      send somemsg
+;to send-pos-enemies 
+;  let agent2 one-of drones with [conv-followed != nobody]
+;  let id-enemie [who] of cible-enemies
+;  let position-enemie [patch-here] of cible-enemies
+;  ;let tick-cour
+;  if agent2 != nobody [
+;    ifelse can-communicate self agent2[
+;      ask self[
+;        let somemsg create-message "inform"
+;        set somemsg add-receiver agent2 somemsg
+;        let msg-list []
+;        set msg-list fput id-enemie msg-list
+;        set msg-list fput position-enemie msg-list
+;        ;     set msg-list fput tick-cour msg-list
+;        set somemsg add-content msg-list somemsg
+;        send somemsg
+;        set cible-enemies nobody
+;      ]
+;    ]
+;    [ask self [go-to-drone [patch-here] of agent2]]
+;  ]
+;end
+
+
+
+;Fonction d'avertissement entre drones (si un drone explorateur rencontre un ennemi, il doit aller prévenir les drones leaders)
+to send-pos-enemies 
+  let agent2 one-of drones with [conv-followed != nobody]
+  if agent2 != nobody [
+    ifelse can-communicate self agent2[
+      ask self[
+        let somemsg create-message "inform"
+        set somemsg add-receiver agent2 somemsg
+        let msg-list []
+        set msg-list fput cible-enemies msg-list
+        set somemsg add-content msg-list somemsg
+        send somemsg
+        set cible-enemies nobody
+      ]
     ]
+    [ask self [go-to-drone [patch-here] of agent2]]
   ]
-  [ask self [go-to-drone [patch-here] of agent2]]
 end
+
+
 
 
 ; Les fonctions d'evaluations 
@@ -201,7 +251,7 @@ to-report evalue-send-pos-enemies
   let valMin 0
   let valMax 10
   let value 0
-  ifelse(not empty? cible-enemies)[
+  ifelse(cible-enemies != nobody)[
     set value 7.2
   ]
   [

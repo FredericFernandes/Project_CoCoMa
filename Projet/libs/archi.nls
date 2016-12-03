@@ -1,9 +1,10 @@
 to create-all-intention-drone
   set intentions []
   add-intention "random-fly" "evalue-random-fly" ; l'intention pour un drone de vouloir voler de façon aléatoire.
-  add-intention "atterissage-drone" "evalue-atterissage-drone" ; l'intention de rentrer à la base pour faire le plein.
+  ;add-intention "atterissage-drone" "evalue-atterissage-drone" ; l'intention de rentrer à la base pour faire le plein.
   add-intention "follow-convoi" "evalue-follow-convoi" ; l'intention de suivre un leader du convoi
   add-intention "explore-path-convoi" "evalue-explore-path-convoi" ; l'intention de parcourir le chemin d'un leader en avance
+  add-intention "send-pos-enemies" "evalue-send-pos-enemies" ; l'intention de donner une info au drone principal
 end
 
 to process-bdi-drone
@@ -26,7 +27,7 @@ to-report evalue-all-intention
   let listEval []
   ;print word "intentions " intentions
   foreach intentions [
-    let result runresult  intention-done ? ; pour chaque intention on execute sa fonction d'evaluation.
+    let result runresult intention-done ? ; pour chaque intention on execute sa fonction d'evaluation.
                                            ;print (word intention-done ? " result " result)
     set listEval lput result listEval
   ]

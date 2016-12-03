@@ -13,23 +13,6 @@ directed-link-breed [convoi-links convoi-link]
 directed-link-breed [red-links red-link]
 directed-link-breed [blue-links blue-link]
 
-;;;;;;;;;;;;;;;;
-;;;INTENTIONS;;;
-;;;;;;;;;;;;;;;;
-
-; go-to-drone
-; ravitaillement
-; set comportement
-;
-;
-;
-;
-;
-;
-;
-
-
-
 
 
 globals [mapAlt solAlt basseAlt hauteAlt ; variables topologiques Z discretise: definit le niveau ou se trouvent toutes les informations de la carte (obstacles base etc.) car en 2D, niveau au sol ou se trouvent les agents, niveau basse altitude et niveau haute altitude
@@ -44,7 +27,7 @@ globals [mapAlt solAlt basseAlt hauteAlt ; variables topologiques Z discretise: 
   ;Optimisation A*
   first-time
   patch-used
-  pos-enemies ;Liste stockant les positions des ennemies trouvés par les drones
+
   range-com ; en distance patch
   start? ;placer a true lorsque tout les drones ont décollés
 
@@ -75,6 +58,8 @@ convois-own[;incoming-queue
   followed?   ;Placé à true si un drone suit le convois
   advanced-followed? ;Placé à true si un drone parcours le chemin du convoi en avance
   path-convoi ; Stockage du chemin du convoi
+   pos-enemies ;Liste stockant les positions des ennemies trouvés par les drones
+  replan? ;Set à true si le convoi doit replanifier son chemin
   ]
 
 enemies-own[
@@ -136,8 +121,7 @@ to setup
   let path-is-possible? false
   while [not path-is-possible?] [
     clear-all
-    set pos-enemies []
-    set pos-enemies fput patch 7 15 0 pos-enemies
+    ;set pos-enemies fput patch 7 15 0 pos-enemies
     if not debug and not debug-verbose [no-display] ; disable gui display to speedup processing, the time slider won't influence the setup procedure
     setup-globals
     setup-env
@@ -149,7 +133,7 @@ to setup
     ]
     ; generate a path and check is the convoi can reach its destination. If not, generate a new env
     [
-      let start-path (plan-astar ([[patch-at 0 0 (pzcor * -1)] of patch-here] of one-of convois with [leader?]) (one-of patches with [objectif?]) false false true)
+      let start-path (plan-astar ([[patch-at 0 0 (pzcor * -1)] of patch-here] of one-of convois with [leader?]) (one-of patches with [objectif?]) false false true [])
       set as-path replace-item 0 as-path start-path
       if not empty? start-path [ set path-is-possible? true]
     ]
@@ -354,10 +338,12 @@ to setup-convois
     set to-protect? false
     set genlongpath? false
     set dead? false
-
+    set replan? false
     set followed? false
     set advanced-followed? false
     set path-convoi []
+
+    set pos-enemies []
     ; Visu
     set label who ; display the car names
   ]
@@ -408,7 +394,7 @@ end
 ; Note: si l'heuristique est consistante/monotone (comme distance euclidienne/vol d'oiseau), h = 0 revient a faire Djikstra
 ; Note2: on l'utilise avec le convoi mais on peut l'utiliser avec n'importe quel agent, c'est generique.
 ; Note3: limite en 2D pour cette application mais on peut facilement la modifier pour accepter la 3D (enlever les limites with [pzcor ...])
-to-report plan-astar [start goal longpath? for-drone? first-time?] ; start et goal sont des patchs
+to-report plan-astar [start goal longpath? for-drone? first-time? tab-pos-enemies] ; start et goal sont des patchs
 
   ; Desactivation du refresh GUI (car calculs internes): Pour etre plus rapide, on dit a NetLogo qu'il peut calculer toute cette fonction sans avoir a updater le GUI (que des calculs internes), comme ca le slider de vitesse n'influencera pas la vitesse de ce code (sinon en slower ca met vraiment beaucoup de temps)
   if not debug-verbose or for-drone? [no-display]
@@ -421,14 +407,16 @@ to-report plan-astar [start goal longpath? for-drone? first-time?] ; start et go
   ;let closed n-values world-height [n-values world-width [0]]
 
 
-  ifelse (first-time?)[
+;  ifelse (first-time?)[
     ask patches [
       set as-closed 0 ; sert a savoir si ce patch a deja ete visite. 0 = non visite, 1 = deja visite (et on visite en premier par le chemin optimal comme Djikstra, donc si un noeud a deja ete visite, on est sur qu'il est inutile de le revisiter par un autre chemin puisqu'il sera moins optimal que le premier chemin qui a conduit a ce patch - ceci est assure car on utilise la distance euclidienne a vol d'oiseau qui est une heuristique consistante/monotone, pas juste admissible)
                       ;    set as-heuristic astar-faster * distance-nowrap goal ; si astar-faster > 1 alors on utilise Weighted AStar, ou le chemin est suboptimal avec une limite de cout au plus astar-faster fois supérieur au cout du chemin optimal. (eg: astar-faster = 2 signifie que le chemin sera au pire deux fois moins optimal au pire). Note: si astar-faster = 0 alors h = 0 pour tous les patchs et ca revient à l'algo de Dijkstra.
     ]
-    set first-time false
-  ]
-  [foreach patch-used[ask ?[set as-closed 0]]]
+;    set first-time false
+;  ]
+;  [
+;    foreach patch-used[ask ?[set as-closed 0]]
+;    ]
   set patch-used []
 
 
@@ -495,22 +483,22 @@ to-report plan-astar [start goal longpath? for-drone? first-time?] ; start et go
           let patch-courant patch pxcor pycor 0
           ;let h2 as-heuristic
           let h2 astar-faster * distance-nowrap goal
-          if is-list? pos-enemies and not empty? pos-enemies[
-            foreach pos-enemies[
-               if patch-courant = ?[
-                 print "OK"
-                set h2 (h2 + 1000)
+          if is-list? tab-pos-enemies and not empty? tab-pos-enemies[
+            foreach tab-pos-enemies[
+              if patch-courant = ?[
+                print "OK"
+                set g2 (g2 - 1)
               ]
+
+;              ask ? in-radius-nowrap 10 [
+;                 print "OK"
+;               ; if patch-courant = ?[
+;
+;                ;  set h2 (h2 + 1000)
+;               ; ]
+;              ]
             ]
           ]
-
-
-
-
-;          if patch-here =
-
-
-
 
           let f2 g2 + h2
 
@@ -590,6 +578,9 @@ to-report plan-astar [start goal longpath? for-drone? first-time?] ; start et go
   ; Reactivation du refresh GUI
   display
 
+  ;On reinit le tableau d'ennemies détéctés
+
+
   ; Et on retourne le chemin complet (ou une liste vide si on n'a rien trouve)
   report path
 end
@@ -622,12 +613,20 @@ to convois-think
     let id ([who] of ?) - first-car
     ; Recalcule le chemin si nécessaire (par exemple au début de la simulation ou quand le convoi se sépare)
     ; Note: on est oblige de le faire en dehors du ask sinon on ne peut pas acceder a tous les patchs
-    if empty? as-path or length as-path < (id + 1) or empty? (item id as-path) [ ; s'il n'y a pas encore de chemin du tout, ou pas de chemin pour cette voiture, on cree un plan AStar
+    if empty? as-path or length as-path < (id + 1) or empty? (item id as-path) or [replan?] of ? [ ; s'il n'y a pas encore de chemin du tout, ou pas de chemin pour cette voiture, on cree un plan AStar
+
+      print "replan"
       ; Cree le plan AStar (attention a ca que le patch start soit au niveau ou il y a les obstacles, ici pzcor = mapAlt pour les obstacles)
       let start-patch min-one-of (patches with [pzcor = mapAlt and not obstacle?]) [distance ?] ; on s'assure de choisir comme patch de depart un patch libre sans obstacle, sinon quand on split un convoi il se peut qu'il soit sur un obstacle et qu'il ne puisse jamais generer de chemin
+      let new-path []
+      ifelse not [replan?] of ? [
+        set new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) ([genlongpath?] of ?) false false []
+      ]
+      [
+        set new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) false false false [pos-enemies] of ?
 
-      ;let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) ([genlongpath?] of ?) false false
-      let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) tmp-longpath false false
+      ]
+     ; let new-path plan-astar ([patch-at 0 0 (pzcor * -1)] of start-patch) (one-of patches with [objectif?]) tmp-longpath false false
 
 
 
@@ -642,7 +641,14 @@ to convois-think
       [
         set as-path replace-item id as-path new-path
       ]
+          if [replan?] of ?[
+      ask ?[
+        set pos-enemies []
+        set replan? false
+        ]
     ]
+    ]
+
   ]
 
   ; Deplacement des leaders sur le chemin AStar
@@ -651,6 +657,7 @@ to convois-think
 
     ; Recupere le plan AStar
     let my-as-path item (who - first-car) as-path
+   ; print length my-as-path
     if not empty? my-as-path [
       ; Deplacement par waypoints: on se deplace jusqu'au prochain patch du chemin jusqu'à l'atteindre
       let next-patch first my-as-path
@@ -843,6 +850,7 @@ end
 
 to check-convoi
   foreach sort-on [who] turtle-set convois with [leader?] [
+    ;print pos-enemies
     ask convois [
       if dead? [
        set color 0
@@ -860,6 +868,29 @@ to check-convoi
       ]
       [
         set advanced-followed? true
+      ]
+      while [not empty? incoming-queue][
+        let patch-en fput item 0 item (position "content:" item 0 incoming-queue + 1 ) get-message pos-enemies
+;        ask item 0 patch-en [
+;          ask neighbors [
+;            set pcolor red
+           set pos-enemies fput [patch pxcor pycor pzcor] of [neighbors] of item 0 patch-en pos-enemies
+;           ask [neighbors] of item 0 patch-en[
+;             set pcolor red
+;           ]
+;          ]
+;        ]
+
+          set pos-enemies patch-en
+      ]
+
+
+      ifelse not empty? pos-enemies[
+        set replan? true
+        ;print "replan to true"
+      ]
+      [
+        set replan? false
       ]
     ]
   ]
@@ -1048,6 +1079,7 @@ to setup-drones
     set fuel max-fuel
     set conv-followed nobody
     set conv-advanced-followed nobody
+    set cible-enemies nobody
   ;  set comportement (random 2) + 1  ; random de 1 à 2
     if who = min [who] of drones[
       set comportement 0
@@ -1263,14 +1295,6 @@ to-report can-communicate [agent1 agent2]
     ;DEtection des montagnes, utiliser patch-is*air et patch-at?
 
   ]
-;  ifelse not res [
-;    ask agent1 [ ask myTurtle[ set color red]]
-;    ask agent2 [ask myTurtle[set color red]]
-;    ]
-;  [
-;    ask agent1 [ ask myTurtle[set color green]]
-;    ask agent2 [ask myTurtle[set color green]]
-;  ]
   report res
 end
 
@@ -1304,7 +1328,7 @@ to warn-leader[drone-lead]
       ]
     ]
   ]
-  [print "wtf"]
+  [print "Erreur sur warn leader"]
 
 end
 
@@ -1394,7 +1418,7 @@ INPUTBOX
 58
 98
 nb-cars
-6
+1
 1
 0
 Number
@@ -1478,7 +1502,7 @@ SWITCH
 209
 astar-longpath
 astar-longpath
-0
+1
 1
 -1000
 
@@ -1583,7 +1607,7 @@ INPUTBOX
 291
 99
 nb-enemies
-0
+10
 1
 0
 Number
@@ -1733,7 +1757,7 @@ INPUTBOX
 220
 159
 nb-drones
-3
+5
 1
 0
 Number
