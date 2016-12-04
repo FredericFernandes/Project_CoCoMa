@@ -96,6 +96,7 @@ to follow-convoi
     set cible one-of targets
     if cible != nobody[
       shoot-drone
+      set munitions (munitions - 1)
     ]
     set cible nobody
   ]
@@ -140,6 +141,7 @@ to explore-path-convoi
     set cible one-of targets
     if cible != nobody[
       shoot-drone
+      set munitions (munitions - 1)
     ]
     set cible nobody
    ]
@@ -233,7 +235,7 @@ to-report evalue-follow-convoi
   let valMin 0
   let valMax 10
   let value 0
-  ifelse((one-of convois with [leader? and not finished? and not dead? and not followed?] != nobody) or conv-followed != nobody)[
+  ifelse(((one-of convois with [leader? and not finished? and not dead? and not followed?] != nobody) or conv-followed != nobody) and munitions > 0)[
     set value 7.3
   ]
 ;  ifelse((one-of convois with [leader? and not finished? and not dead? and not followed?] != nobody) or conv-followed != nobody)[
@@ -251,7 +253,7 @@ to-report evalue-explore-path-convoi
   let valMin 0
   let valMax 10
   let value 0
-  ifelse((one-of convois with [leader? and not finished? and not dead? and not advanced-followed?] != nobody) or conv-advanced-followed != nobody)[
+  ifelse(((one-of convois with [leader? and not finished? and not dead? and not advanced-followed?] != nobody) or conv-advanced-followed != nobody) and munitions > 0)[
     set value 7.1
   ]
   [

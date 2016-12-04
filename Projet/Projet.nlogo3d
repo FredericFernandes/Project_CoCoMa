@@ -33,6 +33,8 @@ globals [mapAlt solAlt basseAlt hauteAlt ; variables topologiques Z discretise: 
 
   pos-decollage-x pos-decollage-y pos-avt-decollage-x pos-avt-decollage-y
 
+
+  full-ammo ;Set le nombre max de munition transportable
  ]
 
 
@@ -99,6 +101,7 @@ drones-own[
   as-path-drones
   goal-drone
   cible-enemies
+  munitions ;Stocks de munitions
 ]
 
 ;***********************
@@ -120,6 +123,7 @@ to setup
   print "       SETUP           "
   print "***********************"
   let path-is-possible? false
+
   while [not path-is-possible?] [
     clear-all
     ;set pos-enemies fput patch 7 15 0 pos-enemies
@@ -163,7 +167,7 @@ to setup-globals
   ;show word "haute Altitude : " hauteAlt
   set mission-completed? false
   set mission-failed? false
-
+  set full-ammo 2
   set as-cost 1 ; cost to move
   set as-path n-values nb-cars [[]] ; max one path for each car
 
@@ -1136,7 +1140,7 @@ to setup-drones
     set pitch 0
     set dead? false
     set take-off? false
-
+    set munitions full-ammo
     set tick-shoot 0
     move-to patch (base-min-pxcor - 2) base-min-pycor 1
     set comportement 0
