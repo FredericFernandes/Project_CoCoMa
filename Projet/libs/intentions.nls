@@ -36,6 +36,7 @@ end
 
 ;Fonction d'atterissage des drones. On se dirige d'abord vers un patch intermédiaire puis on abaisse l'orientation par rapport au sol du drone
 to atterissage-drone
+  print "atterissage"
   ask my-links [die]
   set conv-followed nobody
   set conv-advanced-followed nobody
@@ -221,10 +222,18 @@ to-report evalue-atterissage-drone
   ;let value (max-fuel - fuel)
   let value 0
   let value2 0
-  
-  set value (max-fuel - fuel  ) 
+  let patchs neighbors-nowrap ; on liste les cases voisines du drone
+  let res true
+  ;ask patchs [ ; on test si pour chaque voisin on a assez de carburant pour renter à la base si on y été dessus
+  ;  set res (res and (have-fuel self myself))
+  ;]
+  ifelse not res [  ; si au moins pour un voisin on a pas assez de carburant
+    set value valMax  ; on retourne la valeur max pour que cette intention soit choisie
+  ][
+  ;print word "fuel " fuel
+     set value (max-fuel - fuel  ) 
+  ]
   set value2 (full-ammo - munitions)
-  
   let scale create-and-normalize-scale valMin valMax value 
   let scale2 create-and-normalize-scale valMin2 valMax2 value2
   let valuefinal (getNormalizeValue scale + getNormalizeValue scale2)
