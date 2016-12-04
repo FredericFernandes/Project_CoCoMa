@@ -96,9 +96,7 @@ to follow-convoi
     let targets enemies in-radius range-com with [not dead?]
     set cible one-of targets
     if cible != nobody[
-      print munitions
       shoot-drone
-      set munitions (munitions - 1)
     ]
     set cible nobody
   ]
