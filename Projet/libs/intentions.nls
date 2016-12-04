@@ -36,7 +36,7 @@ end
 
 ;Fonction d'atterissage des drones. On se dirige d'abord vers un patch intermédiaire puis on abaisse l'orientation par rapport au sol du drone
 to atterissage-drone
-  print "atterissage"
+  ;print "atterissage"
   ask my-links [die]
   set conv-followed nobody
   set conv-advanced-followed nobody
