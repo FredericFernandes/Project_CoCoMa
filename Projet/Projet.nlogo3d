@@ -79,6 +79,7 @@ missiles-own[
 ]
 
 drones-own[
+  tick-shoot
   dead?
   take-off? ;true si le drone a décollé
   can-take-off? ; true si le drone peut décoller (le premier drone est init a true le reste a false)
@@ -440,6 +441,20 @@ to-report plan-astar [start goal longpath? for-drone? first-time? tab-pos-enemie
   let resign false ; si aucun chemin ne peut etre trouve (plus rien dans la liste open)
   let counter 0 ; si on a visite trop de patchs et que la recherche met trop de temps
 
+
+
+
+  if is-list? tab-pos-enemies and not empty? tab-pos-enemies[
+    foreach tab-pos-enemies[
+      ask ?[
+        ;      print "OK"
+        set obstacle? true
+      ]
+    ]
+  ]
+
+
+
   while [not found and not resign] [
 
     ; Critere d'arret si echec (plus de patch a visiter ou trop de patchs deja visite)
@@ -483,22 +498,22 @@ to-report plan-astar [start goal longpath? for-drone? first-time? tab-pos-enemie
           let patch-courant patch pxcor pycor 0
           ;let h2 as-heuristic
           let h2 astar-faster * distance-nowrap goal
-          if is-list? tab-pos-enemies and not empty? tab-pos-enemies[
-            foreach tab-pos-enemies[
-              if patch-courant = ?[
-                print "OK"
-                set g2 (g2 - 1)
-              ]
-
-;              ask ? in-radius-nowrap 10 [
-;                 print "OK"
-;               ; if patch-courant = ?[
+;          if is-list? tab-pos-enemies and not empty? tab-pos-enemies[
+;;            foreach tab-pos-enemies[
+;;              if patch-courant = ?[
+;;                print "OK"
+;;                set g2 (g2 + 10)
+;;              ]
 ;
-;                ;  set h2 (h2 + 1000)
-;               ; ]
-;              ]
-            ]
-          ]
+;;              ask ? in-radius-nowrap 10 [
+;;                 print "OK"
+;;               ; if patch-courant = ?[
+;;
+;;                ;  set h2 (h2 + 1000)
+;;               ; ]
+;;              ]
+;            ]
+;          ]
 
           let f2 g2 + h2
 
@@ -514,6 +529,14 @@ to-report plan-astar [start goal longpath? for-drone? first-time? tab-pos-enemie
     ]
   ]
 
+  if is-list? tab-pos-enemies and not empty? tab-pos-enemies[
+    foreach tab-pos-enemies[
+      ask ?[
+        ;      print "OK"
+        set obstacle? false
+      ]
+    ]
+  ]
   if (debug and not for-drone?) [print (word "found:" found " - resign:" resign)]
 
   ; Visualisation de tous les noeuds explores en coloriant selon quand ca a ete explore (score as-closed)
@@ -894,54 +917,60 @@ to check-convoi
       ]
     ]
   ]
+ end
 
 
-end
 
 to move-enemies
   no-display
   ask enemies
   [
-    let goal goal1
-    if (not toward-goal1?) [set goal goal2]
-    let headingFlag (towards-nowrap goal)
-    let dirCorrection subtract-headings headingFlag heading
-    ;Arrondissement de l'angle (on ne veut pas faire de micro tournant)
-    set dirCorrection precision dirCorrection 2
-    ;Limite de l'angle, pour que ce soit plus realiste (la voiture ne peut pas faire un demi-tour sur place!)
-    ifelse dirCorrection > maxdir [ ; limite a droite
-      set dirCorrection maxdir
-    ];else
-    [
-      if dirCorrection < maxdir * -1 [ ; limite a gauche
-        set dirCorrection maxdir * -1
+    ifelse dead? [
+       set color 0
+       ask my-links [die]
       ]
-    ]
-    ;On tourne
-    rt dirCorrection
+    [
+      let goal goal1
+      if (not toward-goal1?) [set goal goal2]
+      let headingFlag (towards-nowrap goal)
+      let dirCorrection subtract-headings headingFlag heading
+      ;Arrondissement de l'angle (on ne veut pas faire de micro tournant)
+      set dirCorrection precision dirCorrection 2
+      ;Limite de l'angle, pour que ce soit plus realiste (la voiture ne peut pas faire un demi-tour sur place!)
+      ifelse dirCorrection > maxdir [ ; limite a droite
+        set dirCorrection maxdir
+      ];else
+      [
+        if dirCorrection < maxdir * -1 [ ; limite a gauche
+          set dirCorrection maxdir * -1
+        ]
+      ]
+      ;On tourne
+      rt dirCorrection
 
-    ; Deplacement!
-    set pitch 0 ; make sure there's no pitch ever, else the car will disappear in the ground
-    fd speed ; Avance
-    if patch-here = goal
-    [ ; On change de goal si on  arrive au but! (pour l'instant patrouille entre deux goals) (aléa ensuite)
-      ifelse toward-goal1? [set toward-goal1? false] [set toward-goal1? true]
-    ]
+      ; Deplacement!
+      set pitch 0 ; make sure there's no pitch ever, else the car will disappear in the ground
+      fd speed ; Avance
+      if patch-here = goal
+      [ ; On change de goal si on  arrive au but! (pour l'instant patrouille entre deux goals) (aléa ensuite)
+        ifelse toward-goal1? [set toward-goal1? false] [set toward-goal1? true]
+      ]
 
-    ; Détéction des convois
-    let targets convois in-cone dist-visibile angle-visibility with [not dead?]
-    ifelse any? other targets
-    [ ; si il y a un convoi dans notre chant de vision
-      set cible one-of targets ; mise à jours de la cible
-      shoot
-    ]
-    [; else
-      set cible nobody ; mise à jours de la cible
-    ]
+      ; Détéction des convois
+      let targets convois in-cone dist-visibile angle-visibility with [not dead?]
+      ifelse any? other targets
+      [ ; si il y a un convoi dans notre chant de vision
+        set cible one-of targets ; mise à jours de la cible
+        shoot
+      ]
+      [; else
+        set cible nobody ; mise à jours de la cible
+      ]
 
-    ; affiche des champs de visions
-    if not (debug-enemies-cone?) [clear-all-cones]
-    if debug-enemies-cone? [show-cone]
+      ; affiche des champs de visions
+      if not (debug-enemies-cone?) [clear-all-cones]
+      if debug-enemies-cone? [show-cone]
+    ]
   ]
   display
 
@@ -982,12 +1011,52 @@ to shoot
   ]
 end
 
+to shoot-drone
+  if (ticks - tick-shoot > 30) ; if can shoot
+  [
+    set tick-shoot ticks
+    let dirCorrection 0
+
+    let posX 0
+    let posY 0
+    let posZ 0
+    ask cible [  ; "cible" est un attribut du turtle
+       set posX pxcor
+       set posY pycor
+       set posZ pzcor
+    ]
+    let patch_target patch posX posY posZ
+
+    let patch_source patch-here
+    hatch-missiles 1
+    [
+      set shape "line"
+      move-to patch_source
+      set color yellow
+      set size 1.0
+
+      set origin patch_source
+      set range dist-visibile  ; les missiles ne vont pas plus loin que la distance de vue des turtles
+
+      ;on tourne
+      face patch_target
+    ]
+  ]
+end
+
+
+
+
 to move-missiles
     ask missiles
     [
       fd 1
       if distance origin > range [die]
-      let victime one-of convois-here with [ not dead? ]
+     ; let victime one-of convois-here with [ not dead? ]
+       let victime one-of enemies-here with [ not dead? ]
+       if victime = nobody [
+         set victime one-of convois-here with [ not dead? ]
+       ]
       if victime != nobody[
          ask victime [ dealDamage ]
         die
@@ -995,6 +1064,7 @@ to move-missiles
 
     ]
 end
+
 
 ; Fonction dans un contexte tortue, elle permet de faire des dégats à la tortue ciblé
 to dealDamage
@@ -1067,6 +1137,7 @@ to setup-drones
     set dead? false
     set take-off? false
 
+    set tick-shoot 0
     move-to patch (base-min-pxcor - 2) base-min-pycor 1
     set comportement 0
     set range-com 5
@@ -1339,6 +1410,7 @@ to go
     check-convoi
 
   ]
+
   move-enemies
   move-missiles
   move-drones

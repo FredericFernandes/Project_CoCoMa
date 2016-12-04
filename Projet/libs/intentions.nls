@@ -91,6 +91,13 @@ to follow-convoi
     if(not empty? incoming-queue)[
       warn-leader self
     ]
+    ; Détéction des ennemies
+    let targets enemies in-radius range-com with [not dead?]
+    set cible one-of targets
+    if cible != nobody[
+      shoot-drone
+    ]
+    set cible nobody
   ]
 
 ;  if(conv-followed = nobody or [dead?] of conv-followed or [finished?] of conv-followed)[
@@ -128,6 +135,13 @@ to explore-path-convoi
          ]
      ]
      astar-drone
+     ; Détéction des ennemies
+    let targets enemies in-radius range-com with [not dead?]
+    set cible one-of targets
+    if cible != nobody[
+      shoot-drone
+    ]
+    set cible nobody
    ]
 end
 
