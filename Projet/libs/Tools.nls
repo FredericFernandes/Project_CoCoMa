@@ -39,3 +39,54 @@ to-report have-fuel [patchTest myDrone]
   report ok
 end
 
+to update-shooser
+    goo:set-chooser-items "Drone1" []
+    goo:set-chooser-items "Drone2" []
+    
+    let droneIds sort ([who] of drones)    
+    goo:set-chooser-items "Drone1" droneIds
+    goo:set-chooser-items "Drone2" droneIds
+end
+
+to drowPlot
+
+   set-current-plot "Value1"
+   ask drone Drone1 [
+    let cpt 0
+    let lastEvalu 0
+      foreach intentions [
+         let evalu item cpt listEval
+         if not empty? lastlistEval
+         [ set lastEvalu item cpt lastlistEval ]
+        
+         let nameFct intention-done ?
+         set cpt cpt + 1
+         set-current-plot-pen nameFct
+         plot-pen-up
+         plotxy (ticks - 1) lastEvalu
+         plot-pen-down
+         plotxy (ticks) evalu
+         plot-pen-up
+      ]
+   ]
+   
+   set-current-plot "Value2"
+   ask drone Drone2 [
+    let cpt 0
+    let lastEvalu 0
+      foreach intentions [
+         let evalu item cpt listEval
+         if not empty? lastlistEval
+         [ set lastEvalu item cpt lastlistEval ]
+        
+         let nameFct intention-done ?
+         set cpt cpt + 1
+         set-current-plot-pen nameFct
+         plot-pen-up
+         plotxy (ticks - 1) lastEvalu
+         plot-pen-down
+         plotxy (ticks) evalu
+         plot-pen-up
+      ]
+   ]
+end

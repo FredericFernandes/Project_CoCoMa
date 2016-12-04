@@ -1,3 +1,4 @@
+extensions[table goo]
 __includes ["libs/bdi.nls" "libs/communication.nls" "libs/archi.nls" "libs/intentions.nls" "libs/Tools.nls" "libs/scale.nls"]
 breed [waypoints waypoint]
 breed [envconstructors envconstructor]
@@ -102,6 +103,8 @@ drones-own[
   goal-drone
   cible-enemies
   munitions ;Stocks de munitions
+  listEval; resultat des evalutions des intentions
+  lastListEval
 ]
 
 ;***********************
@@ -154,6 +157,8 @@ to setup
 ;  setup-hq
   setup-precache
   display ; reenable gui display
+  clear-all-plots
+  update-shooser
   reset-ticks
 end
 
@@ -1184,6 +1189,7 @@ to setup-drones
       set myTurtle tmp
 
       create-all-intention-drone
+
   ]
 end
 
@@ -1419,12 +1425,9 @@ to go
   move-missiles
   move-drones
   ;drone-think
- process-bdi-drone
-
-
-
-
+  process-bdi-drone
   tick
+  drowPlot
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -1463,7 +1466,7 @@ SWITCH
 223
 debug
 debug
-1
+0
 1
 -1000
 
@@ -1550,10 +1553,10 @@ nb-rivers
 Number
 
 INPUTBOX
-616
-178
-777
-238
+576
+122
+737
+182
 astar-faster
 20
 1
@@ -1561,10 +1564,10 @@ astar-faster
 Number
 
 INPUTBOX
-616
-252
-777
-312
+576
+196
+737
+256
 astar-max-depth
 10000
 1
@@ -1572,43 +1575,43 @@ astar-max-depth
 Number
 
 SWITCH
-424
-176
-588
+384
+120
+548
+153
+astar-longpath
+astar-longpath
+1
+1
+-1000
+
+SWITCH
+384
+164
+547
+197
+astar-randpath
+astar-randpath
+0
+1
+-1000
+
+SWITCH
+381
+257
+543
+290
+astar-visu-more
+astar-visu-more
+1
+1
+-1000
+
+SWITCH
+382
 209
-astar-longpath
-astar-longpath
-1
-1
--1000
-
-SWITCH
-424
-220
-587
-253
-astar-randpath
-astar-randpath
-1
-1
--1000
-
-SWITCH
-421
-313
-583
-346
-astar-visu-more
-astar-visu-more
-1
-1
--1000
-
-SWITCH
-422
-265
-585
-298
+545
+242
 astar-visu
 astar-visu
 0
@@ -1616,15 +1619,15 @@ astar-visu
 -1000
 
 SLIDER
-10
-318
-182
-351
+827
+54
+999
+87
 simu-speed
 simu-speed
 0
 10
-1
+10
 1
 1
 NIL
@@ -1641,20 +1644,20 @@ Debug
 1
 
 TEXTBOX
-11
-302
-161
-320
+828
+38
+978
+56
 Simulation
 12
 0.0
 1
 
 TEXTBOX
-414
-147
-564
-165
+374
+91
+524
+109
 A*
 12
 0.0
@@ -1705,7 +1708,7 @@ SWITCH
 224
 debug-enemies-cone?
 debug-enemies-cone?
-1
+0
 1
 -1000
 
@@ -1719,102 +1722,6 @@ angle-visibility
 1
 0
 Number
-
-MONITOR
-143
-468
-238
-513
-NIL
-subject
-3
-1
-11
-
-BUTTON
-12
-355
-202
-388
-watch enemies
-let tmp one-of enemies with [not dead? ]\nif tmp != nobody \n[watch one-of enemies with [not dead? ]]
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-11
-392
-199
-425
-ride enemies
-let tmp one-of enemies with [not dead? ]\nif tmp != nobody \n[ride one-of enemies with [not dead? ]]
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-113
-429
-271
-462
-NIL
-reset-perspective
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-206
-356
-390
-389
-watch convoi
-let tmp one-of convois with [not dead? ]\nif tmp != nobody \n[watch one-of convois with [not dead? ]]
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
-
-BUTTON
-205
-393
-350
-426
-ride convois
-let tmp one-of convois with [not dead? ]\nif tmp != nobody \n[ ride one-of convois with [not dead? ]]
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
 
 INPUTBOX
 86
@@ -1833,67 +1740,16 @@ INPUTBOX
 220
 159
 nb-drones
-5
+1
 1
 0
 Number
 
-BUTTON
-403
-355
-550
-388
-watch drone
-let tmp one-of drones with [not dead? ]\nif tmp != nobody \n[watch one-of drones with [not dead? ]]
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-403
-394
-549
-427
-follow drone
-let tmp one-of drones with [not dead? ]\nif tmp != nobody \n[follow one-of drones with [not dead? ]]
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-411
-446
-545
-479
-ride drone
-let tmp one-of drones with [not dead? ]\nif tmp != nobody \n[ride one-of drones]
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
 SWITCH
-512
-86
-729
-119
+428
+54
+645
+87
 active-comportement?
 active-comportement?
 1
@@ -1901,10 +1757,10 @@ active-comportement?
 -1000
 
 SWITCH
-673
-421
-816
-454
+775
+200
+918
+233
 show-intentions
 show-intentions
 0
@@ -1912,21 +1768,21 @@ show-intentions
 -1000
 
 SWITCH
-672
-382
-818
-415
+774
+161
+920
+194
 show_messages
 show_messages
-1
+0
 1
 -1000
 
 BUTTON
-393
-84
-498
-117
+309
+52
+414
+85
 NIL
 ravitaillement\n
 NIL
@@ -1940,35 +1796,99 @@ NIL
 1
 
 TEXTBOX
-676
-349
-826
-367
+778
+128
+928
+146
 Communication\n
 11
 0.0
 1
 
 TEXTBOX
-395
-63
-545
-81
+311
+31
+461
+49
 Drones
 11
 0.0
 1
 
 SWITCH
-890
-113
-1044
-146
+652
+54
+806
+87
 tmp-longpath
 tmp-longpath
 1
 1
 -1000
+
+PLOT
+7
+297
+595
+503
+Value1
+NIL
+NIL
+0.0
+1000.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"evalue-random-fly" 1.0 0 -5825686 true "" ""
+"evalue-atterissage-drone" 1.0 0 -11085214 true "" ""
+"evalue-follow-convoi" 1.0 0 -13791810 true "" ""
+"evalue-explore-path-convoi" 1.0 0 -1184463 true "" ""
+"evalue-send-pos-enemies" 1.0 0 -16777216 true "" ""
+
+PLOT
+599
+297
+1182
+503
+Value2
+NIL
+NIL
+0.0
+1000.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"evalue-random-fly" 1.0 0 -5825686 true "" ""
+"evalue-atterissage-drone" 1.0 0 -11085214 true "" ""
+"evalue-follow-convoi" 1.0 0 -13791810 true "" ""
+"evalue-explore-path-convoi" 1.0 0 -1184463 true "" ""
+"evalue-send-pos-enemies" 1.0 0 -16777216 true "" ""
+
+CHOOSER
+99
+512
+237
+557
+Drone1
+Drone1
+35
+0
+
+CHOOSER
+716
+514
+854
+559
+Drone2
+Drone2
+35
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
