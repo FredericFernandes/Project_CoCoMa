@@ -66,7 +66,7 @@ to atterissage-drone
       set can-land? false
       set headingFlag 0
       set fuel max-fuel
-
+      set munitions full-ammo
     ]
   ]
   let dirCorrection subtract-headings headingFlag heading
@@ -95,6 +95,7 @@ to follow-convoi
     let targets enemies in-radius range-com with [not dead?]
     set cible one-of targets
     if cible != nobody[
+      print munitions
       shoot-drone
       set munitions (munitions - 1)
     ]
@@ -113,6 +114,7 @@ end
 
 
 to explore-path-convoi
+;  print "drone following"
    if(conv-advanced-followed = nobody or [dead?] of conv-advanced-followed  or [finished?] of conv-advanced-followed)[
      set conv-advanced-followed (one-of convois with [leader? and not finished? and not dead? and not advanced-followed?])
      set as-path-drones []
@@ -140,6 +142,7 @@ to explore-path-convoi
     let targets enemies in-radius range-com with [not dead?]
     set cible one-of targets
     if cible != nobody[
+      print munitions
       shoot-drone
       set munitions (munitions - 1)
     ]
@@ -212,9 +215,12 @@ end
 ; evaluation de l'intention de vouloir atterir pour faire le plein.
 to-report evalue-atterissage-drone
   let valMin 0
-  let valMax max-fuel
+  let valMax max-fuel  
+  let valMin2 0
+  let valMax2 full-ammo
   ;let value (max-fuel - fuel)
   let value 0
+  let value2 0
   let patchs neighbors-nowrap ; on liste les cases voisines du drone
   let res true
   ;ask patchs [ ; on test si pour chaque voisin on a assez de carburant pour renter à la base si on y été dessus
@@ -224,10 +230,16 @@ to-report evalue-atterissage-drone
     set value valMax  ; on retourne la valeur max pour que cette intention soit choisie
   ][
   ;print word "fuel " fuel
-     set value (max-fuel - fuel) 
+     set value (max-fuel - fuel  ) 
   ]
+  set value2 (full-ammo - munitions)
   let scale create-and-normalize-scale valMin valMax value 
-  report getNormalizeValue scale
+  let scale2 create-and-normalize-scale valMin2 valMax2 value2
+  let valuefinal (getNormalizeValue scale + getNormalizeValue scale2)
+  let valMinfinal 0
+  let valMaxfinal 20
+  let scalefinal create-and-normalize-scale valMinfinal valMaxfinal valuefinal
+  report getNormalizeValue scalefinal
 end
 
 
@@ -235,7 +247,7 @@ to-report evalue-follow-convoi
   let valMin 0
   let valMax 10
   let value 0
-  ifelse(((one-of convois with [leader? and not finished? and not dead? and not followed?] != nobody) or conv-followed != nobody) and munitions > 0)[
+  ifelse((one-of convois with [leader? and not finished? and not dead? and not followed?] != nobody) or conv-followed != nobody)[
     set value 7.3
   ]
 ;  ifelse((one-of convois with [leader? and not finished? and not dead? and not followed?] != nobody) or conv-followed != nobody)[
@@ -253,7 +265,7 @@ to-report evalue-explore-path-convoi
   let valMin 0
   let valMax 10
   let value 0
-  ifelse(((one-of convois with [leader? and not finished? and not dead? and not advanced-followed?] != nobody) or conv-advanced-followed != nobody) and munitions > 0)[
+  ifelse((one-of convois with [leader? and not finished? and not dead? and not advanced-followed?] != nobody) or conv-advanced-followed != nobody)[
     set value 7.1
   ]
   [
