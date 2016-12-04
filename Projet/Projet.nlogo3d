@@ -687,29 +687,30 @@ to convois-think
   ; Deplacement des leaders sur le chemin AStar
   ask convois with [leader? and not finished? and not dead?] [ ; Tant qu'on n'a pas atteint le but
     ;move-convoi-naive ; deplacement naif sans AStar
-
-    ; Recupere le plan AStar
-    let my-as-path item (who - first-car) as-path
-   ; print length my-as-path
-    if not empty? my-as-path [
-      ; Deplacement par waypoints: on se deplace jusqu'au prochain patch du chemin jusqu'à l'atteindre
-      let next-patch first my-as-path
-      let zz pzcor
-      set next-patch [patch-at 0 0 (zz - pzcor)] of next-patch ; mise a niveau de pzcor au cas ou le chemin a ete calculé sur un autre plan
-      ; Deplacement vers le prochain waypoint
-      if next-patch != patch-here [move-convoi next-patch false false]
-      ; Si on a atteint ce patch, on le supprime de la liste, et on va donc continuer vers le prochain patch du chemin
-      if patch-here = next-patch [
-        set my-as-path remove-item 0 my-as-path
-        set as-path replace-item (who - first-car) as-path my-as-path
-        if debug [ show (word "Waypoint atteint: " patch-here ", prochain: " next-patch ) ]
+    if followed?[
+      ; Recupere le plan AStar
+      let my-as-path item (who - first-car) as-path
+      ; print length my-as-path
+      if not empty? my-as-path [
+        ; Deplacement par waypoints: on se deplace jusqu'au prochain patch du chemin jusqu'à l'atteindre
+        let next-patch first my-as-path
+        let zz pzcor
+        set next-patch [patch-at 0 0 (zz - pzcor)] of next-patch ; mise a niveau de pzcor au cas ou le chemin a ete calculé sur un autre plan
+                                                                 ; Deplacement vers le prochain waypoint
+        if next-patch != patch-here [move-convoi next-patch false false]
+        ; Si on a atteint ce patch, on le supprime de la liste, et on va donc continuer vers le prochain patch du chemin
+        if patch-here = next-patch [
+          set my-as-path remove-item 0 my-as-path
+          set as-path replace-item (who - first-car) as-path my-as-path
+          if debug [ show (word "Waypoint atteint: " patch-here ", prochain: " next-patch ) ]
+        ]
       ]
-    ]
 
-    set path-convoi as-path
-;    print as-path
-    ; Critere d'arret: on est a cote de l'objectif
-    check-convoi-finished
+      set path-convoi as-path
+      ;    print as-path
+      ; Critere d'arret: on est a cote de l'objectif
+    ]
+      check-convoi-finished
 
   ]
 
