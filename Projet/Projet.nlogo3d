@@ -172,7 +172,7 @@ to setup-globals
   ;show word "haute Altitude : " hauteAlt
   set mission-completed? false
   set mission-failed? false
-  set full-ammo 2
+  set full-ammo 5
   set as-cost 1 ; cost to move
   set as-path n-values nb-cars [[]] ; max one path for each car
 
@@ -1016,8 +1016,8 @@ to shoot
       set shape "line"
       move-to patch_source
       set color yellow
-      set size 1.0
-
+      set size 3
+      set label ""
       set origin patch_source
       set range dist-visibile  ; les missiles ne vont pas plus loin que la distance de vue des turtles
 
@@ -1031,8 +1031,8 @@ to shoot-drone
   if (ticks - tick-shoot > 30) ; if can shoot
   [
     set tick-shoot ticks
+    set munitions (munitions - 1)
     let dirCorrection 0
-
     let posX 0
     let posY 0
     let posZ 0
@@ -1049,7 +1049,8 @@ to shoot-drone
       set shape "line"
       move-to patch_source
       set color yellow
-      set size 1.0
+      set size 3
+      set label ""
 
       set origin patch_source
       set range dist-visibile  ; les missiles ne vont pas plus loin que la distance de vue des turtles
@@ -1390,15 +1391,6 @@ end
 
 
 to go
-  if all? convois with [to-protect?] [not dead? and finished?] [
-   user-message (word "The mission is successfull, " count convois with [not dead?]" cars is / are still alive.")
-   stop
-  ]
-  if all? convois with [to-protect?] [dead?] [
-   user-message (word "The mission has failed.")
-   stop
-  ]
-
 
   if(start?)[
     convois-think
@@ -1413,6 +1405,15 @@ to go
   process-bdi-drone
   tick
   drowPlot
+
+    if all? convois with [to-protect?] [not dead? and finished?] [
+   user-message (word "The mission is successfull, " count convois with [not dead?]" cars is / are still alive.")
+   stop
+  ]
+  if all? convois with [to-protect?] [dead?] [
+   user-message (word "The mission has failed.")
+   stop
+  ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -1451,7 +1452,7 @@ SWITCH
 223
 debug
 debug
-0
+1
 1
 -1000
 
@@ -1725,7 +1726,7 @@ INPUTBOX
 220
 159
 nb-drones
-10
+1
 1
 0
 Number
@@ -1813,7 +1814,7 @@ CHOOSER
 557
 Drone1
 Drone1
-71 72 73 74 75 76 77 78 79 80
+80
 0
 
 CHOOSER
@@ -1823,7 +1824,7 @@ CHOOSER
 559
 Drone2
 Drone2
-71 72 73 74 75 76 77 78 79 80
+80
 0
 
 @#$#@#$#@

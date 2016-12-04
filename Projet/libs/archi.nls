@@ -22,7 +22,7 @@ to process-bdi
   ;updateBelief
   let bestIntention evalue-all-intention
   ;print word "bestIntention " intention-name bestIntention 
-  set label( word who" "intention-name bestIntention)
+  set label( word who" "intention-name bestIntention" "munitions)
   run intention-name bestIntention
 end
 
