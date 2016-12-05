@@ -173,7 +173,7 @@ to setup-globals
   ;show word "haute Altitude : " hauteAlt
   set mission-completed? false
   set mission-failed? false
-  set full-ammo int (nb-enemies / (nb-drones * 2))
+  set full-ammo int ((nb-enemies / (nb-drones * 2)) + 1)
   set as-cost 1 ; cost to move
   set as-path n-values nb-cars [[]] ; max one path for each car
 
@@ -1028,7 +1028,7 @@ to shoot
 end
 
 to shoot-drone
-  if (ticks - tick-shoot > 30) and (munitions > 1) ; if can shoot
+  if (ticks - tick-shoot > 30) and (munitions >= 1) ; if can shoot
   [
     set tick-shoot ticks
     let dirCorrection 0
@@ -1670,7 +1670,7 @@ INPUTBOX
 291
 99
 nb-enemies
-5
+10
 1
 0
 Number
@@ -1724,7 +1724,7 @@ INPUTBOX
 220
 159
 nb-drones
-1
+10
 1
 0
 Number
@@ -1812,7 +1812,7 @@ CHOOSER
 557
 Drone1
 Drone1
-36
+63 64 65 66 67 68 69 70 71 72
 0
 
 CHOOSER
@@ -1822,8 +1822,8 @@ CHOOSER
 559
 Drone2
 Drone2
-36
-0
+63 64 65 66 67 68 69 70 71 72
+9
 
 @#$#@#$#@
 ## WHAT IS IT?
