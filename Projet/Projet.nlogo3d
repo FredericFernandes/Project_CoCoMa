@@ -1389,38 +1389,31 @@ to warn-leader[drone-lead]
 
 end
 
-
-to go
-
+to move-convois
   if(start?)[
     convois-think
     check-convoi
-
   ]
+end
 
+to go
+ move-convois
   move-enemies
   move-missiles
   move-drones
-  ;drone-think
   process-bdi-drone
   tick
   drowPlot
+  if winOrLose
+  [stop]
 
-    if all? convois with [to-protect?] [not dead? and finished?] [
-   user-message (word "The mission is successfull, " count convois with [not dead?]" cars is / are still alive.")
-   stop
-  ]
-  if all? convois with [to-protect?] [dead?] [
-   user-message (word "The mission has failed.")
-   stop
-  ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
 0
 0
-520
-541
+1020
+1041
 -1
 -1
 10.0
@@ -1434,9 +1427,9 @@ GRAPHICS-WINDOW
 1
 1
 0
-50
+100
 0
-50
+100
 0
 8
 1
@@ -1613,7 +1606,7 @@ simu-speed
 simu-speed
 0
 10
-1
+4
 1
 1
 NIL
@@ -1672,7 +1665,7 @@ INPUTBOX
 291
 99
 nb-enemies
-10
+100
 1
 0
 Number
@@ -1726,7 +1719,7 @@ INPUTBOX
 220
 159
 nb-drones
-1
+2
 1
 0
 Number
@@ -1814,7 +1807,7 @@ CHOOSER
 557
 Drone1
 Drone1
-80
+159 160
 0
 
 CHOOSER
@@ -1824,7 +1817,7 @@ CHOOSER
 559
 Drone2
 Drone2
-80
+159 160
 0
 
 @#$#@#$#@
