@@ -1434,7 +1434,7 @@ GRAPHICS-WINDOW
 0
 1
 ticks
-60.0
+30.0
 
 SWITCH
 15
@@ -1604,7 +1604,7 @@ simu-speed
 simu-speed
 0
 10
-8
+4
 1
 1
 NIL
@@ -1717,7 +1717,11 @@ INPUTBOX
 220
 159
 nb-drones
+<<<<<<< HEAD
 5
+=======
+2
+>>>>>>> 1ee67e5cf990b4699aee37d8647afb59c8c494a4
 1
 0
 Number
@@ -1805,7 +1809,11 @@ CHOOSER
 557
 Drone1
 Drone1
-123 124 125 126 127
+<<<<<<< HEAD
+77 78 79 80 81
+=======
+159 160
+>>>>>>> 1ee67e5cf990b4699aee37d8647afb59c8c494a4
 0
 
 CHOOSER
@@ -1815,7 +1823,11 @@ CHOOSER
 559
 Drone2
 Drone2
-123 124 125 126 127
+<<<<<<< HEAD
+77 78 79 80 81
+=======
+159 160
+>>>>>>> 1ee67e5cf990b4699aee37d8647afb59c8c494a4
 0
 
 @#$#@#$#@

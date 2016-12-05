@@ -90,3 +90,15 @@ to drowPlot
       ]
    ]
 end
+
+to-report  winOrLose
+  if all? convois with [to-protect?] [not dead? and finished?] [
+   user-message (word "The mission is successfull, " count convois with [not dead?]" cars is / are still alive.")
+   report true
+  ]
+  if all? convois with [to-protect?] [dead?] [
+   user-message (word "The mission has failed.")
+   report true
+  ]
+  report false
+end
