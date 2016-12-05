@@ -27,13 +27,12 @@ to process-bdi
 end
 
 to-report evalue-all-intention
-  set lastlistEval listEval
+  set lastlistEval listEval ; liste des dernières valeurs ( utile pour l'affichage des graphes)
   set listEval []
-  ;print word "intentions " intentions
   foreach intentions [
     let result runresult intention-done ? ; pour chaque intention on execute sa fonction d'evaluation.
-                                           ;print (word intention-done ? " result " result)
-    set listEval lput result listEval
+
+    set listEval lput result listEval; on stoke le resulat dans la liste 
   ]
   let positionOfEvalMax position (max listEval) listEval  ; on récupére l'indice de l'evaluation max
   let bestIntention item positionOfEvalMax intentions

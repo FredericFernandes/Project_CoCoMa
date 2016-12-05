@@ -79,6 +79,7 @@ enemies-own[
 missiles-own[
   range
   origin
+  _type
 ]
 
 drones-own[
@@ -182,7 +183,7 @@ to setup-globals
   set is-movie-recording? false
   ;set max-fuel 1000
 
-  set max-fuel (max-pxcor * max-pycor) / 2.5
+  set max-fuel (max-pxcor * max-pycor) / 5
 
 
   set fuel-dec 1
@@ -731,7 +732,7 @@ to convois-think
 end
 
 to-report detect-obstacle
- if any? other patches in-cone 10 60 with [obstacle?] [report true]
+ if any? other patches in-cone-nowrap  10 60 with [obstacle?] [report true]
 ; if any? other patches in-cone 10 90 [report true]
 ; if any? other patches in-cone 3 270 [report true]
  report false
@@ -972,7 +973,7 @@ to move-enemies
       ]
 
       ; Détéction des convois
-      let targets convois in-cone dist-visibile angle-visibility with [not dead?]
+      let targets convois in-cone-nowrap  dist-visibile angle-visibility with [not dead?]
       ifelse any? other targets
       [ ; si il y a un convoi dans notre chant de vision
         set cible one-of targets ; mise à jours de la cible
@@ -1016,10 +1017,10 @@ to shoot
       move-to patch_source
       set color yellow
       set size 1.0
-
+      set _type 0
       set origin patch_source
       set range dist-visibile  ; les missiles ne vont pas plus loin que la distance de vue des turtles
-
+      set label ""
       ;on tourne
       face patch_target
     ]
@@ -1031,7 +1032,7 @@ to shoot-drone
   [
     set tick-shoot ticks
     let dirCorrection 0
-
+    set munitions munitions - 1
     let posX 0
     let posY 0
     let posZ 0
@@ -1049,10 +1050,10 @@ to shoot-drone
       move-to patch_source
       set color yellow
       set size 1.0
-
+      set _type 1
       set origin patch_source
       set range dist-visibile  ; les missiles ne vont pas plus loin que la distance de vue des turtles
-
+      set label ""
       ;on tourne
       face patch_target
     ]
@@ -1066,12 +1067,18 @@ to move-missiles
     ask missiles
     [
       fd 1
-      if distance origin > range [die]
-     ; let victime one-of convois-here with [ not dead? ]
-       let victime one-of enemies-here with [ not dead? ]
-       if victime = nobody [
-         set victime one-of convois-here with [ not dead? ]
-       ]
+      if distance-nowrap origin > range [die]
+
+      let victime nobody
+
+      ifelse _type = 0
+      [  ; missile lancé par un tank
+        set victime one-of convois-here with [ not dead? ]
+        ]
+      [ ; missile lancé par un drone
+        set victime one-of enemies-here with [ not dead? ]
+        ]
+
       if victime != nobody[
          ask victime [ dealDamage ]
         die
@@ -1155,7 +1162,7 @@ to setup-drones
     set tick-shoot 0
     move-to patch (base-min-pxcor - 2) base-min-pycor 1
     set comportement 0
-    set range-com max-pxcor / 10
+    set range-com max-pxcor / 7
     set can-take-off? false
     set can-land? false
     set atterissage? false
@@ -1181,7 +1188,7 @@ to setup-drones
 ;      ]
 
 
-      set alt hauteAlt    ;Autres comportements
+      set alt basseAlt    ;Autres comportements
       let tmp nobody
       hatch-cercles 1
       [
@@ -1280,7 +1287,7 @@ end
 ;Fonction de décollage des drones ( on fait aller le drone en ligne droite et on modifie son orientation par rapport au sol avec les fonctions tilt-up et tilt-down)
 to decollage-drone
   ifelse abs (zcor - alt) > 0.05[
-    tilt-up abs (alt - zcor) / 10
+    tilt-up abs (alt - zcor) / (5 / simu-speed)
   ]
   [
     tilt-down pitch
@@ -1316,8 +1323,8 @@ to go-to-drone [goal]
     stop]
   let headingFlag (towards-nowrap goal) ; si on peut(on est au dessus des montagnes) on vole en ligne droite jusqu'a l'objectif
   let dirCorrection subtract-headings headingFlag heading
-  if dirCorrection > 10[set dirCorrection 10]
-  if dirCorrection < -10[set dirCorrection -10]
+  if dirCorrection > 15[set dirCorrection 15]
+  if dirCorrection < -15[set dirCorrection -15]
   rt dirCorrection
 ;      if alt = basseAlt[ ; si il y a un obstacle on passe au dessus de la montagne
 ;        ifelse (obstacle-drone? or move-up?) [up-montagne]
@@ -1410,8 +1417,8 @@ end
 GRAPHICS-WINDOW
 0
 0
-1020
-1041
+420
+441
 -1
 -1
 10.0
@@ -1425,9 +1432,9 @@ GRAPHICS-WINDOW
 1
 1
 0
-100
+40
 0
-100
+40
 0
 8
 1
@@ -1474,7 +1481,7 @@ INPUTBOX
 58
 98
 nb-cars
-1
+5
 1
 0
 Number
@@ -1604,7 +1611,7 @@ simu-speed
 simu-speed
 0
 10
-8
+1
 1
 1
 NIL
@@ -1663,7 +1670,7 @@ INPUTBOX
 291
 99
 nb-enemies
-100
+5
 1
 0
 Number
@@ -1706,7 +1713,7 @@ INPUTBOX
 159
 159
 dist-visibile
-7
+10
 1
 0
 Number
@@ -1760,8 +1767,8 @@ PLOT
 595
 503
 Value1
-NIL
-NIL
+tick
+evaluation
 0.0
 1000.0
 0.0
@@ -1773,17 +1780,17 @@ PENS
 "evalue-random-fly" 1.0 0 -5825686 true "" ""
 "evalue-atterissage-drone" 1.0 0 -11085214 true "" ""
 "evalue-follow-convoi" 1.0 0 -13791810 true "" ""
-"evalue-explore-path-convoi" 1.0 0 -1184463 true "" ""
+"evalue-explore-path-convoi" 1.0 0 -7171555 true "" ""
 "evalue-send-pos-enemies" 1.0 0 -16777216 true "" ""
 
 PLOT
-599
+600
 297
-1182
+1188
 503
 Value2
-NIL
-NIL
+tick
+evaluation
 0.0
 1000.0
 0.0
@@ -1795,7 +1802,7 @@ PENS
 "evalue-random-fly" 1.0 0 -5825686 true "" ""
 "evalue-atterissage-drone" 1.0 0 -11085214 true "" ""
 "evalue-follow-convoi" 1.0 0 -13791810 true "" ""
-"evalue-explore-path-convoi" 1.0 0 -1184463 true "" ""
+"evalue-explore-path-convoi" 1.0 0 -7171555 true "" ""
 "evalue-send-pos-enemies" 1.0 0 -16777216 true "" ""
 
 CHOOSER
@@ -1805,7 +1812,7 @@ CHOOSER
 557
 Drone1
 Drone1
-123 124 125 126 127
+87 88 89 90 91
 0
 
 CHOOSER
@@ -1815,7 +1822,7 @@ CHOOSER
 559
 Drone2
 Drone2
-123 124 125 126 127
+87 88 89 90 91
 0
 
 @#$#@#$#@

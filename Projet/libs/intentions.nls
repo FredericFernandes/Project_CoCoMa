@@ -12,7 +12,7 @@ to random-fly
 
 
     ; Détéction des ennemies
-    let targets enemies in-radius range-com with [not dead?]
+    let targets enemies in-radius dist-visibile with [not dead?]
     if any? other targets
     [ ; si il y a un enemie dans notre champs de vision
       foreach as-path [
@@ -43,15 +43,15 @@ to atterissage-drone
   ;print "atterissage-drone"
   let headingFlag 0
   ifelse (not can-land?)[     ;Si on ne peut pas se poser, on se dirige vers le patch situé devant la base
-    set headingFlag (towards-nowrap patch pos-avt-decollage-x pos-avt-decollage-y zcor)
-    if (patch-here = patch pos-avt-decollage-x pos-avt-decollage-y zcor)[;Une fois arrivé sur le patch on passe can-lan? à true pour pouvoir se poser
+    set headingFlag (towards-nowrap patch pos-avt-decollage-x  pos-avt-decollage-y zcor)
+    if (patch-here = patch pos-avt-decollage-x  pos-avt-decollage-y zcor)[;Une fois arrivé sur le patch on passe can-lan? à true pour pouvoir se poser
       set can-land? true
     ]
   ]
   [
     set headingFlag (towards-nowrap patch pos-decollage-x pos-decollage-y 1);On définit une nouvelle cible pour le drone(point de départ des drones)
     ifelse abs zcor > (solAlt + 0.05)[ ;Atterissage des drones
-      tilt-down abs (zcor) / 10
+      tilt-down abs (zcor) / (5 / simu-speed)
     ]
     [
       tilt-up (- pitch) ;une fois arrivé au sol on redresse le nez du drone
@@ -71,8 +71,8 @@ to atterissage-drone
     ]
   ]
   let dirCorrection subtract-headings headingFlag heading
-  if dirCorrection > 10[set dirCorrection 10]
-  if dirCorrection < -10[set dirCorrection -10]
+  if dirCorrection > 15[set dirCorrection 15]
+  if dirCorrection < -15[set dirCorrection -15]
   rt dirCorrection
 end
 
@@ -93,7 +93,7 @@ to follow-convoi
       warn-leader self
     ]
     ; Détéction des ennemies
-    let targets enemies in-radius range-com with [not dead?]
+    let targets enemies in-radius dist-visibile with [not dead?]
     set cible one-of targets
     if cible != nobody[
       shoot-drone
@@ -138,7 +138,7 @@ to explore-path-convoi
      ]
      astar-drone
      ; Détéction des ennemies
-    let targets enemies in-radius range-com with [not dead?]
+    let targets enemies in-radius dist-visibile with [not dead?]
     set cible one-of targets
     if cible != nobody[
       shoot-drone
@@ -205,7 +205,7 @@ to-report evalue-random-fly
   let valMin 0
   let valMax 10
   
-  let scale create-and-normalize-scale valMin valMax 7 
+  let scale create-and-normalize-scale valMin valMax 6 
   report getNormalizeValue scale
 end
 
@@ -247,11 +247,8 @@ to-report evalue-follow-convoi
   let valMax 10
   let value 0
   ifelse((one-of convois with [leader? and not finished? and not dead? and not followed?] != nobody) or conv-followed != nobody)[
-    set value 7.3
+    set value 7.2
   ]
-;  ifelse((one-of convois with [leader? and not finished? and not dead? and not followed?] != nobody) or conv-followed != nobody)[
-;    set value 7.1
-;  ]
   [
     set value 0
   ]
@@ -265,7 +262,7 @@ to-report evalue-explore-path-convoi
   let valMax 10
   let value 0
   ifelse((one-of convois with [leader? and not finished? and not dead? and not advanced-followed?] != nobody) or conv-advanced-followed != nobody)[
-    set value 7.1
+    set value 6.4
   ]
   [
     set value 0
@@ -279,7 +276,7 @@ to-report evalue-send-pos-enemies
   let valMax 10
   let value 0
   ifelse(cible-enemies != nobody)[
-    set value 7.2
+    set value 6.8
   ]
   [
     set value 0
