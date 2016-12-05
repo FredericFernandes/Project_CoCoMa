@@ -19,7 +19,7 @@ directed-link-breed [blue-links blue-link]
 globals [mapAlt solAlt basseAlt hauteAlt ; variables topologiques Z discretise: definit le niveau ou se trouvent toutes les informations de la carte (obstacles base etc.) car en 2D, niveau au sol ou se trouvent les agents, niveau basse altitude et niveau haute altitude
   base-patches base-entry base-central ; precache: definit ou se trouvent les patchs de la base d'atterrissage, le patch d'entree sur la piste d'atterrissage, et le patch ou doivent s'arreter les drones pour se recharger. Permet d'evaluer rapidement la distance et les besoins des drones (quand ils doivent rentrer a la base)
   as-cost as-path ; variables globales pour les chemins AStar: le cout d'un pas sur un patch, et as-path est la liste des plans, un pour chaque convoi leader
-  max-fuel max-ammo ; fuel and ammo for drones.
+  max-fuel ; fuel
   fuel-dec ; how much fuel will be decremented at each iteration
   mission-completed? mission-failed?
   send-interval ; communication period
@@ -173,7 +173,7 @@ to setup-globals
   ;show word "haute Altitude : " hauteAlt
   set mission-completed? false
   set mission-failed? false
-  set full-ammo 2
+  set full-ammo int (nb-enemies / (nb-drones * 2))
   set as-cost 1 ; cost to move
   set as-path n-values nb-cars [[]] ; max one path for each car
 
@@ -183,7 +183,7 @@ to setup-globals
   set is-movie-recording? false
   ;set max-fuel 1000
 
-  set max-fuel (max-pxcor * max-pycor) / 5
+  set max-fuel (max-pxcor * max-pycor) / 2
 
 
   set fuel-dec 1
@@ -1028,7 +1028,7 @@ to shoot
 end
 
 to shoot-drone
-  if (ticks - tick-shoot > 30) ; if can shoot
+  if (ticks - tick-shoot > 30) and (munitions > 1) ; if can shoot
   [
     set tick-shoot ticks
     let dirCorrection 0
@@ -1724,7 +1724,7 @@ INPUTBOX
 220
 159
 nb-drones
-5
+1
 1
 0
 Number
@@ -1812,7 +1812,7 @@ CHOOSER
 557
 Drone1
 Drone1
-87 88 89 90 91
+36
 0
 
 CHOOSER
@@ -1822,7 +1822,7 @@ CHOOSER
 559
 Drone2
 Drone2
-87 88 89 90 91
+36
 0
 
 @#$#@#$#@
