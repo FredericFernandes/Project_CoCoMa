@@ -172,7 +172,7 @@ to setup-globals
   ;show word "haute Altitude : " hauteAlt
   set mission-completed? false
   set mission-failed? false
-  set full-ammo 5
+  set full-ammo 2
   set as-cost 1 ; cost to move
   set as-path n-values nb-cars [[]] ; max one path for each car
 
@@ -687,7 +687,8 @@ to convois-think
   ; Deplacement des leaders sur le chemin AStar
   ask convois with [leader? and not finished? and not dead?] [ ; Tant qu'on n'a pas atteint le but
     ;move-convoi-naive ; deplacement naif sans AStar
-    if followed?[
+    let drone-selec one-of drones with [conv-followed = myself]
+    if followed? and drone-selec != nobody and distancexy [xcor] of drone-selec [ycor] of drone-selec < range-com[
       ; Recupere le plan AStar
       let my-as-path item (who - first-car) as-path
       ; print length my-as-path
@@ -710,7 +711,7 @@ to convois-think
       ;    print as-path
       ; Critere d'arret: on est a cote de l'objectif
     ]
-      check-convoi-finished
+    check-convoi-finished
 
   ]
 
@@ -928,9 +929,6 @@ to check-convoi
       ]
       if finished?[
         hide-turtle
-
-
-
       ]
     ]
   ]
@@ -1017,8 +1015,8 @@ to shoot
       set shape "line"
       move-to patch_source
       set color yellow
-      set size 3
-      set label ""
+      set size 1.0
+
       set origin patch_source
       set range dist-visibile  ; les missiles ne vont pas plus loin que la distance de vue des turtles
 
@@ -1032,8 +1030,8 @@ to shoot-drone
   if (ticks - tick-shoot > 30) ; if can shoot
   [
     set tick-shoot ticks
-    set munitions (munitions - 1)
     let dirCorrection 0
+
     let posX 0
     let posY 0
     let posZ 0
@@ -1050,8 +1048,7 @@ to shoot-drone
       set shape "line"
       move-to patch_source
       set color yellow
-      set size 3
-      set label ""
+      set size 1.0
 
       set origin patch_source
       set range dist-visibile  ; les missiles ne vont pas plus loin que la distance de vue des turtles
@@ -1158,7 +1155,7 @@ to setup-drones
     set tick-shoot 0
     move-to patch (base-min-pxcor - 2) base-min-pycor 1
     set comportement 0
-    set range-com 5
+    set range-com max-pxcor / 10
     set can-take-off? false
     set can-land? false
     set atterissage? false
@@ -1392,6 +1389,16 @@ end
 
 
 to go
+  if all? convois with [to-protect?] [not dead? and finished?] [
+    user-message (word "The mission is successfull, " count convois with [not dead?]" cars is / are still alive.")
+    stop
+  ]
+  if all? convois with [to-protect?] [dead?] [
+    check-convoi
+    user-message (word "The mission has failed.")
+    stop
+  ]
+
 
   if(start?)[
     convois-think
@@ -1406,15 +1413,6 @@ to go
   process-bdi-drone
   tick
   drowPlot
-
-    if all? convois with [to-protect?] [not dead? and finished?] [
-   user-message (word "The mission is successfull, " count convois with [not dead?]" cars is / are still alive.")
-   stop
-  ]
-  if all? convois with [to-protect?] [dead?] [
-   user-message (word "The mission has failed.")
-   stop
-  ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -1484,7 +1482,7 @@ INPUTBOX
 58
 98
 nb-cars
-3
+1
 1
 0
 Number
@@ -1579,7 +1577,7 @@ SWITCH
 197
 astar-randpath
 astar-randpath
-0
+1
 1
 -1000
 
@@ -1727,7 +1725,7 @@ INPUTBOX
 220
 159
 nb-drones
-1
+5
 1
 0
 Number
@@ -1815,7 +1813,7 @@ CHOOSER
 557
 Drone1
 Drone1
-80
+77 78 79 80 81
 0
 
 CHOOSER
@@ -1825,7 +1823,7 @@ CHOOSER
 559
 Drone2
 Drone2
-80
+77 78 79 80 81
 0
 
 @#$#@#$#@

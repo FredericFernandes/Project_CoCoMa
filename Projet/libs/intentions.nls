@@ -141,9 +141,7 @@ to explore-path-convoi
     let targets enemies in-radius range-com with [not dead?]
     set cible one-of targets
     if cible != nobody[
-      print munitions
       shoot-drone
-      set munitions (munitions - 1)
     ]
     set cible nobody
    ]
@@ -236,8 +234,10 @@ to-report evalue-atterissage-drone
   let scale2 create-and-normalize-scale valMin2 valMax2 value2
   let valuefinal (getNormalizeValue scale + getNormalizeValue scale2)
   let valMinfinal 0
-  let valMaxfinal 20
+  let valMaxfinal globalScaleMax * 2
   let scalefinal create-and-normalize-scale valMinfinal valMaxfinal valuefinal
+  ;print getNormalizeValue scalefinal
+  ;print fuel
   report getNormalizeValue scalefinal
 end
 
