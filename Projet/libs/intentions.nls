@@ -93,7 +93,9 @@ to follow-convoi
       warn-leader self
     ]
     ; Détéction des ennemies
-    let targets enemies in-radius dist-visibile with [not dead?]
+   ; let targets enemies in-radius dist-visibile with [not dead?]
+     let targets enemies in-radius range-com with [not dead?]
+    
     set cible one-of targets
     if cible != nobody[
       shoot-drone
@@ -138,7 +140,9 @@ to explore-path-convoi
      ]
      astar-drone
      ; Détéction des ennemies
-    let targets enemies in-radius dist-visibile with [not dead?]
+;    let targets enemies in-radius dist-visibile with [not dead?]
+
+     let targets enemies in-radius range-com with [not dead?]
     set cible one-of targets
     if cible != nobody[
       shoot-drone
@@ -146,31 +150,6 @@ to explore-path-convoi
     set cible nobody
    ]
 end
-
-
-;Fonction d'avertissement entre drones (si un drone explorateur rencontre un ennemi, il doit aller prévenir les drones leaders)
-;to send-pos-enemies 
-;  let agent2 one-of drones with [conv-followed != nobody]
-;  let id-enemie [who] of cible-enemies
-;  let position-enemie [patch-here] of cible-enemies
-;  ;let tick-cour
-;  if agent2 != nobody [
-;    ifelse can-communicate self agent2[
-;      ask self[
-;        let somemsg create-message "inform"
-;        set somemsg add-receiver agent2 somemsg
-;        let msg-list []
-;        set msg-list fput id-enemie msg-list
-;        set msg-list fput position-enemie msg-list
-;        ;     set msg-list fput tick-cour msg-list
-;        set somemsg add-content msg-list somemsg
-;        send somemsg
-;        set cible-enemies nobody
-;      ]
-;    ]
-;    [ask self [go-to-drone [patch-here] of agent2]]
-;  ]
-;end
 
 
 
@@ -220,9 +199,6 @@ to-report evalue-atterissage-drone
   let value2 0
   let patchs neighbors-nowrap ; on liste les cases voisines du drone
   let res true
-  ;ask patchs [ ; on test si pour chaque voisin on a assez de carburant pour renter à la base si on y été dessus
-  ;  set res (res and (have-fuel self myself))
-  ;]
   ifelse not res [  ; si au moins pour un voisin on a pas assez de carburant
     set value valMax  ; on retourne la valeur max pour que cette intention soit choisie
   ][

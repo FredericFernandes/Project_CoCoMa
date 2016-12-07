@@ -1179,13 +1179,6 @@ to setup-drones
       set can-take-off? true
       set as-path-drones as-path  ;Exploration chemin en amont du convoi
      ]
-     ;print (word "comportement de " who " " comportement)
-;    ifelse comportement = 2 [     ;Comportement "tir sur les enemies"
-;        set alt (basseAlt - 1)
-;      ]
-;      [
-;        set alt hauteAlt    ;Autres comportements
-;      ]
 
 
       set alt basseAlt    ;Autres comportements
@@ -1207,44 +1200,6 @@ to setup-drones
 end
 
 
-
-;;Déplacement des drones à chaque ticks
-;to move-drones
-;  no-display
-;  foreach sort-on [who] drones[
-;    let patch-com patch 0 0 0
-;    ask ? [
-;      set patch-com patch-here
-;      if can-take-off?
-;      [
-;        ifelse not take-off?[; si le drone n'a pas décollé
-;          decollage-drone
-;        ]
-;        [
-;          ifelse (? != last sort-on [who] drones) [
-;            ask (drone [who + 1] of ?) [
-;              set can-take-off? true
-;            ]
-;          ][
-;            set start? true
-;          ]
-;        ]
-;        if (atterissage?)[
-;          atterissage-drone ?
-;        ]
-;        fd speed / 5
-;        fd speed / 10
-;
-;        ;set fuel fuel - fuel-dec
-;
-;        let valFuel ((getContent-belief "fuel") - fuel-dec)
-;        createBelief "fuel" valFuel
-;      ]
-;      ask myTurtle [ move-to myself ]
-;    ]
-;  ]
-;  display
-;end
 
 ;Déplacement des drones à chaque ticks
 to move-drones
@@ -1303,16 +1258,11 @@ to astar-drone
     if as-path-drones != 0 and not empty? as-path-drones [
       ; Deplacement par waypoints: on se deplace jusqu'au prochain patch du chemin jusqu'à l'atteindre
       let next-patch first as-path-drones
-;      if not is-list? next-patch[
-        set next-patch [patch-at 0 0 0] of next-patch ; mise a niveau de pzcor au cas ou le chemin a ete calculé sur un autre plan
+      set next-patch [patch-at 0 0 0] of next-patch ; mise a niveau de pzcor au cas ou le chemin a ete calculé sur un autre plan
                                                       ; Deplacement vers le prochain waypoint
-        ;print next-patch
-        if next-patch != patch-here [go-to-drone next-patch ]
+      if next-patch != patch-here [go-to-drone next-patch ]
         ; Si on a atteint ce patch, on le supprime de la liste, et on va donc continuer vers le prochain patch du chemin
-        if distance-nowrap next-patch  < (2 + zcor) [set as-path-drones remove-item 0 as-path-drones]
-
-       ; if length as-path-drones = 1 [set as-path-drones item ([who] of conv-advanced-followed - min [who] of convois) as-path]
-;      ]
+      if distance-nowrap next-patch  < (2 + zcor) [set as-path-drones remove-item 0 as-path-drones]
     ]
 end
 
@@ -1335,18 +1285,6 @@ to go-to-drone [goal]
 ;        ]
 ;      ]
 end
-
-
-
-
-;Donne l'ordre au drone de retrouner a la base
-to ravitaillement
-  ask one-of drones [ set atterissage? true]
-end
-
-
-
-
 
 
 ;Booléen permettant de déterminer si deux agents peuvent communiquer
@@ -1417,8 +1355,8 @@ end
 GRAPHICS-WINDOW
 0
 0
-420
-441
+520
+541
 -1
 -1
 10.0
@@ -1432,9 +1370,9 @@ GRAPHICS-WINDOW
 1
 1
 0
-40
+50
 0
-40
+50
 0
 8
 1
@@ -1670,7 +1608,7 @@ INPUTBOX
 291
 99
 nb-enemies
-10
+20
 1
 0
 Number
@@ -1724,7 +1662,7 @@ INPUTBOX
 220
 159
 nb-drones
-10
+6
 1
 0
 Number
@@ -1812,7 +1750,7 @@ CHOOSER
 557
 Drone1
 Drone1
-63 64 65 66 67 68 69 70 71 72
+74 75 76 77 78 79
 0
 
 CHOOSER
@@ -1822,8 +1760,8 @@ CHOOSER
 559
 Drone2
 Drone2
-63 64 65 66 67 68 69 70 71 72
-9
+74 75 76 77 78 79
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
